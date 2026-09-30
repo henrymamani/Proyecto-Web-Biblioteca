@@ -2,8 +2,72 @@
 {% block title %}Catalogo | Nodo{% endblock %}
 {% block section %}Catalogo{% endblock %}
 {% block content %}
-<section class="page-head catalog-head"><div><p class="eyebrow">Libros</p><h1>Catalogo de Sistemas e Informatica</h1><p>Busca por titulo, autor o categoria y revisa existencias.</p></div></section>
-<form class="catalog-filter" method="get"><div class="search-input"><label class="sr-only" for="catalog-search">Buscar</label><input id="catalog-search" name="q" value="{{ consulta }}" placeholder="Buscar por titulo, autor o categoria"></div><select name="categoria"><option value="">Todas las categorias</option>{% for categoria in categorias %}<option value="{{ categoria }}" {% if categoria == categoria_actual %}selected{% endif %}>{{ categoria }}</option>{% endfor %}</select><button class="btn" type="submit">Filtrar</button>{% if consulta or categoria_actual %}<a class="btn btn-ghost" href="{% url 'catalogo' %}">Limpiar</a>{% endif %}</form>
+<section class="page-head catalog-head">
+  <div>
+    <p class="eyebrow">Libros</p>
+    <h1>Catalogo de Sistemas e Informatica</h1>
+    <p>Busca por titulo, autor o categoria y revisa existencias.</p>
+  </div>
+</section>
+<form class="catalog-filter" method="get">
+  <div class="search-input">
+    <label class="sr-only" for="catalog-search">Buscar</label>
+    <input id="catalog-search" name="q" value="{{ consulta }}" placeholder="Buscar por titulo, autor o categoria">
+  </div>
+  <select name="categoria">
+    <option value="">Todas las categorias</option>
+    {% for categoria in categorias %}
+      <option value="{{ categoria }}" {% if categoria == categoria_actual %}selected{% endif %}>
+        {{ categoria }}
+      </option>
+    {% endfor %}
+  </select>
+  <button class="btn" type="submit">Filtrar</button>
+  {% if consulta or categoria_actual %}
+    <a class="btn btn-ghost" href="{% url 'catalogo' %}">Limpiar</a>
+  {% endif %}
+</form>
 <div class="catalog-count">{{ libros|length }} resultado(s)</div>
-<section class="books-grid">{% for libro in libros %}<article class="book-card catalog-card"><div class="book-cover {% if libro.imagen_url %}has-image{% endif %}" {% if libro.imagen_url %}style="background-image:url('{{ libro.imagen_url }}')"{% endif %}><span>{{ libro.categoria|slice:':2'|upper }}</span><i></i></div><div class="book-info"><p>{{ libro.categoria }}</p><h3>{{ libro.titulo }}</h3><small>{{ libro.autor }}</small><div class="book-details"><span>{{ libro.ubicacion|default:'Sin ubicacion' }}</span><span>{{ libro.anio_publicacion|default:'--' }}</span></div><div class="book-footer"><span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">{% if libro.disponible %}{{ libro.stock }} disponible(s){% else %}Sin ejemplares{% endif %}</span>{% if user.is_authenticated and not user.is_staff and not user.is_superuser and user.tipo_usuario != 'administrador' %}<form action="{% url 'crear_reserva' libro.id %}" method="post">{% csrf_token %}<button class="btn btn-small btn-ghost" type="submit">Solicitar reserva</button></form>{% endif %}</div></div></article>{% empty %}<div class="empty-state full-width"><strong>No encontramos libros con esos datos.</strong><p>Prueba una busqueda mas amplia o limpia los filtros.</p></div>{% endfor %}</section>
+<section class="books-grid">
+  {% for libro in libros %}
+    <article class="book-card catalog-card">
+      <div
+        class="book-cover {% if libro.imagen_url %}has-image{% endif %}"
+        {% if libro.imagen_url %}style="background-image:url('{{ libro.imagen_url }}')"{% endif %}
+      >
+        <span>{{ libro.categoria|slice:':2'|upper }}</span>
+        <i></i>
+      </div>
+      <div class="book-info">
+        <p>{{ libro.categoria }}</p>
+        <h3>{{ libro.titulo }}</h3>
+        <small>{{ libro.autor }}</small>
+        <div class="book-details">
+          <span>{{ libro.ubicacion|default:'Sin ubicacion' }}</span>
+          <span>{{ libro.anio_publicacion|default:'--' }}</span>
+        </div>
+        <div class="book-footer">
+          <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
+            {% if libro.disponible %}
+              {{ libro.stock }} disponible(s)
+            {% else %}
+              Sin ejemplares
+            {% endif %}
+          </span>
+          {% if user.is_authenticated and not user.is_staff and not user.is_superuser and user.tipo_usuario != 'administrador' %}
+            <form action="{% url 'crear_reserva' libro.id %}" method="post">
+              {% csrf_token %}
+              <button class="btn btn-small btn-ghost" type="submit">Solicitar reserva</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+  {% empty %}
+    <div class="empty-state full-width">
+      <strong>No encontramos libros con esos datos.</strong>
+      <p>Prueba una busqueda mas amplia o limpia los filtros.</p>
+    </div>
+  {% endfor %}
+</section>
 {% endblock %}

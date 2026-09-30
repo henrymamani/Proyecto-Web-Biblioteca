@@ -2,6 +2,44 @@
 {% block title %}Mis reservas | Nodo{% endblock %}
 {% block section %}Mi cuenta / Reservas{% endblock %}
 {% block content %}
-<section class="page-head"><div><p class="eyebrow">Solicitudes</p><h1>Mis reservas</h1><p>La biblioteca revisara y autorizara tus solicitudes de prestamo.</p></div><div class="head-actions"><a class="btn" href="{% url 'catalogo' %}">Ir al catalogo</a></div></section>
-<section class="panel-card records-panel wide-panel"><div class="table-wrap"><table><thead><tr><th>Libro</th><th>Fecha de reserva</th><th>Estado</th></tr></thead><tbody>{% for reserva in reservas %}<tr><td><strong>{{ reserva.libro.titulo }}</strong><small>{{ reserva.libro.autor }}</small></td><td>{{ reserva.fecha_reserva|date:'d/m/Y' }}</td><td><span class="status status-{{ reserva.estado }}">{{ reserva.get_estado_display }}</span></td></tr>{% empty %}<tr><td colspan="3" class="empty-table">No tienes reservas registradas.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Solicitudes</p>
+    <h1>Mis reservas</h1>
+    <p>La biblioteca revisara y autorizara tus solicitudes de prestamo.</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn" href="{% url 'catalogo' %}">Ir al catalogo</a>
+  </div>
+</section>
+
+<section class="panel-card records-panel wide-panel">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Libro</th>
+          <th>Fecha de reserva</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for reserva in reservas %}
+          <tr>
+            <td>
+              <strong>{{ reserva.libro.titulo }}</strong>
+              <small>{{ reserva.libro.autor }}</small>
+            </td>
+            <td>{{ reserva.fecha_reserva|date:'d/m/Y' }}</td>
+            <td><span class="status status-{{ reserva.estado }}">{{ reserva.get_estado_display }}</span></td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="empty-table">No tienes reservas registradas.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

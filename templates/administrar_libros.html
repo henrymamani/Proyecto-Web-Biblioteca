@@ -2,6 +2,86 @@
 {% block title %}Gestion de libros | Nodo{% endblock %}
 {% block section %}Gestion / Libros{% endblock %}
 {% block content %}
-<section class="page-head"><div><p class="eyebrow">Gestion de catalogo</p><h1>{% if libro_editando %}Editar libro{% else %}Libros y material bibliografico{% endif %}</h1><p>Registra y actualiza los ejemplares de la coleccion.</p></div></section>
-<section class="management-layout"><article class="panel-card form-panel"><div class="card-heading"><div><p class="eyebrow">Formulario</p><h2>{% if libro_editando %}Actualizar datos{% else %}Nuevo titulo{% endif %}</h2></div>{% if libro_editando %}<a href="{% url 'administrar_libros' %}" class="text-link">Cancelar <span>x</span></a>{% endif %}</div><form method="post" class="form-grid">{% csrf_token %}{% if form.non_field_errors %}<div class="form-errors field-wide">{{ form.non_field_errors }}</div>{% endif %}{% for field in form %}<div class="field {% if field.name == 'descripcion' or field.name == 'imagen_url' %}field-wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<div class="field-wide"><button class="btn" type="submit">{% if libro_editando %}Guardar cambios{% else %}Agregar libro{% endif %}</button></div></form></article><article class="panel-card records-panel"><div class="card-heading"><div><p class="eyebrow">Inventario</p><h2>Catalogo actual</h2></div><span class="record-count">{{ libros|length }} titulos</span></div><div class="table-wrap"><table><thead><tr><th>Titulo</th><th>Categoria</th><th>Stock</th><th></th></tr></thead><tbody>{% for libro in libros %}<tr><td><strong>{{ libro.titulo }}</strong><small>{{ libro.autor }}</small></td><td>{{ libro.categoria }}</td><td><span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">{{ libro.stock }} ej.</span></td><td><a class="table-link" href="{% url 'editar_libro' libro.id %}">Editar</a></td></tr>{% empty %}<tr><td colspan="4" class="empty-table">Aun no hay libros en el catalogo.</td></tr>{% endfor %}</tbody></table></div></article></section>
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Gestion de catalogo</p>
+    <h1>{% if libro_editando %}Editar libro{% else %}Libros y material bibliografico{% endif %}</h1>
+    <p>Registra y actualiza los ejemplares de la coleccion.</p>
+  </div>
+</section>
+
+<section class="management-layout">
+  <article class="panel-card form-panel">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Formulario</p>
+        <h2>{% if libro_editando %}Actualizar datos{% else %}Nuevo titulo{% endif %}</h2>
+      </div>
+      {% if libro_editando %}
+        <a href="{% url 'administrar_libros' %}" class="text-link">Cancelar <span>x</span></a>
+      {% endif %}
+    </div>
+    <form method="post" class="form-grid">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="form-errors field-wide">{{ form.non_field_errors }}</div>
+      {% endif %}
+      {% for field in form %}
+        <div class="field {% if field.name == 'descripcion' or field.name == 'imagen_url' %}field-wide{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+      <div class="field-wide">
+        <button class="btn" type="submit">
+          {% if libro_editando %}Guardar cambios{% else %}Agregar libro{% endif %}
+        </button>
+      </div>
+    </form>
+  </article>
+
+  <article class="panel-card records-panel">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Inventario</p>
+        <h2>Catalogo actual</h2>
+      </div>
+      <span class="record-count">{{ libros|length }} titulos</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Titulo</th>
+            <th>Categoria</th>
+            <th>Stock</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for libro in libros %}
+            <tr>
+              <td>
+                <strong>{{ libro.titulo }}</strong>
+                <small>{{ libro.autor }}</small>
+              </td>
+              <td>{{ libro.categoria }}</td>
+              <td>
+                <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
+                  {{ libro.stock }} ej.
+                </span>
+              </td>
+              <td><a class="table-link" href="{% url 'editar_libro' libro.id %}">Editar</a></td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="empty-table">Aun no hay libros en el catalogo.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
 {% endblock %}

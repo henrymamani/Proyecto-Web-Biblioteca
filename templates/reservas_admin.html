@@ -2,6 +2,58 @@
 {% block title %}Reservas | Nodo{% endblock %}
 {% block section %}Gestion / Reservas{% endblock %}
 {% block content %}
-<section class="page-head"><div><p class="eyebrow">Solicitudes</p><h1>Reservas de libros</h1><p>Autoriza las solicitudes de estudiantes y docentes para crear sus prestamos.</p></div></section>
-<section class="panel-card records-panel wide-panel"><div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Libro</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>{% for reserva in reservas %}<tr><td><strong>{{ reserva.usuario.get_full_name|default:reserva.usuario.username }}</strong><small>{{ reserva.usuario.get_tipo_usuario_display }}</small></td><td>{{ reserva.libro.titulo }}</td><td>{{ reserva.fecha_reserva|date:'d/m/Y' }}</td><td><span class="status status-{{ reserva.estado }}">{{ reserva.get_estado_display }}</span></td><td>{% if reserva.estado == 'pendiente' %}<div class="table-actions"><form action="{% url 'actualizar_reserva' reserva.id 'autorizar' %}" method="post">{% csrf_token %}<button class="table-link button-link" type="submit">Autorizar</button></form><form action="{% url 'actualizar_reserva' reserva.id 'rechazar' %}" method="post">{% csrf_token %}<button class="table-link button-link muted-link" type="submit">Rechazar</button></form></div>{% endif %}</td></tr>{% empty %}<tr><td colspan="5" class="empty-table">No hay reservas registradas.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Solicitudes</p>
+    <h1>Reservas de libros</h1>
+    <p>Autoriza las solicitudes de estudiantes y docentes para crear sus prestamos.</p>
+  </div>
+</section>
+
+<section class="panel-card records-panel wide-panel">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Libro</th>
+          <th>Fecha</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for reserva in reservas %}
+          <tr>
+            <td>
+              <strong>{{ reserva.usuario.get_full_name|default:reserva.usuario.username }}</strong>
+              <small>{{ reserva.usuario.get_tipo_usuario_display }}</small>
+            </td>
+            <td>{{ reserva.libro.titulo }}</td>
+            <td>{{ reserva.fecha_reserva|date:'d/m/Y' }}</td>
+            <td><span class="status status-{{ reserva.estado }}">{{ reserva.get_estado_display }}</span></td>
+            <td>
+              {% if reserva.estado == 'pendiente' %}
+                <div class="table-actions">
+                  <form action="{% url 'actualizar_reserva' reserva.id 'autorizar' %}" method="post">
+                    {% csrf_token %}
+                    <button class="table-link button-link" type="submit">Autorizar</button>
+                  </form>
+                  <form action="{% url 'actualizar_reserva' reserva.id 'rechazar' %}" method="post">
+                    {% csrf_token %}
+                    <button class="table-link button-link muted-link" type="submit">Rechazar</button>
+                  </form>
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="empty-table">No hay reservas registradas.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

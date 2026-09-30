@@ -1,5 +1,37 @@
 {% extends 'base.html' %}
 {% block title %}Registro | Nodo{% endblock %}
 {% block content %}
-<section class="auth-layout register-layout"><div class="auth-aside"><p class="eyebrow">Registro de estudiantes</p><h1>Crea tu cuenta<br><em>de biblioteca.</em></h1><p>El registro publico solo habilita cuentas de estudiante. Docentes y administradores son registrados por la biblioteca.</p><div class="notice-soft"><strong>Limite de prestamos</strong><span>Las cuentas de estudiante pueden tener hasta 2 libros activos.</span></div></div><div class="auth-card wide-card"><p class="eyebrow">Datos del estudiante</p><h2>Crear cuenta</h2><form method="post" class="form-grid">{% csrf_token %}{% for field in form %}<div class="field {% if field.name == 'email' or field.name == 'username' or 'password' in field.name %}field-wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small class="help-text">{{ field.help_text|safe }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="field-wide"><button class="btn btn-full" type="submit">Crear cuenta</button></div></form><p class="auth-footer">Ya tienes cuenta? <a href="{% url 'login' %}">Ingresar</a></p></div></section>
+<section class="auth-layout register-layout">
+  <div class="auth-aside">
+    <p class="eyebrow">Registro de estudiantes</p>
+    <h1>Crea tu cuenta<br><em>de biblioteca.</em></h1>
+    <p>El registro publico solo habilita cuentas de estudiante. Docentes y administradores son registrados por la biblioteca.</p>
+    <div class="notice-soft">
+      <strong>Limite de prestamos</strong>
+      <span>Las cuentas de estudiante pueden tener hasta 2 libros activos.</span>
+    </div>
+  </div>
+
+  <div class="auth-card wide-card">
+    <p class="eyebrow">Datos del estudiante</p>
+    <h2>Crear cuenta</h2>
+    <form method="post" class="form-grid">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="field {% if field.name == 'email' or field.name == 'username' or 'password' in field.name %}field-wide{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}
+            <small class="help-text">{{ field.help_text|safe }}</small>
+          {% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+      <div class="field-wide">
+        <button class="btn btn-full" type="submit">Crear cuenta</button>
+      </div>
+    </form>
+    <p class="auth-footer">Ya tienes cuenta? <a href="{% url 'login' %}">Ingresar</a></p>
+  </div>
+</section>
 {% endblock %}

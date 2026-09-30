@@ -2,6 +2,46 @@
 {% block title %}Avisos | Nodo{% endblock %}
 {% block section %}Mi cuenta / Avisos{% endblock %}
 {% block content %}
-<section class="page-head"><div><p class="eyebrow">Centro de avisos</p><h1>Notificaciones</h1><p>Recordatorios de vencimiento, reservas y multas.</p></div>{% if notificaciones %}<form method="post" class="head-actions">{% csrf_token %}<button class="btn btn-ghost" type="submit">Marcar como leidas</button></form>{% endif %}</section>
-<section class="notification-page">{% for aviso in notificaciones %}<article class="notice-item {% if not aviso.leida %}unread{% endif %}"><div class="notice-symbol">{% if aviso.tipo == 'multa' %}Bs{% elif aviso.tipo == 'vencimiento' %}!{% else %}i{% endif %}</div><div><strong>{{ aviso.get_tipo_display }}</strong><p>{{ aviso.mensaje }}</p><small>{{ aviso.creada_en|date:'d/m/Y H:i' }}</small></div>{% if not aviso.leida %}<span class="new-dot"></span>{% endif %}</article>{% empty %}<div class="empty-state"><strong>No tienes notificaciones.</strong><p>Los avisos importantes apareceran en esta seccion.</p></div>{% endfor %}</section>
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Centro de avisos</p>
+    <h1>Notificaciones</h1>
+    <p>Recordatorios de vencimiento, reservas y multas.</p>
+  </div>
+  {% if notificaciones %}
+    <form method="post" class="head-actions">
+      {% csrf_token %}
+      <button class="btn btn-ghost" type="submit">Marcar como leidas</button>
+    </form>
+  {% endif %}
+</section>
+
+<section class="notification-page">
+  {% for aviso in notificaciones %}
+    <article class="notice-item {% if not aviso.leida %}unread{% endif %}">
+      <div class="notice-symbol">
+        {% if aviso.tipo == 'multa' %}
+          Bs
+        {% elif aviso.tipo == 'vencimiento' %}
+          !
+        {% else %}
+          i
+        {% endif %}
+      </div>
+      <div>
+        <strong>{{ aviso.get_tipo_display }}</strong>
+        <p>{{ aviso.mensaje }}</p>
+        <small>{{ aviso.creada_en|date:'d/m/Y H:i' }}</small>
+      </div>
+      {% if not aviso.leida %}
+        <span class="new-dot"></span>
+      {% endif %}
+    </article>
+  {% empty %}
+    <div class="empty-state">
+      <strong>No tienes notificaciones.</strong>
+      <p>Los avisos importantes apareceran en esta seccion.</p>
+    </div>
+  {% endfor %}
+</section>
 {% endblock %}

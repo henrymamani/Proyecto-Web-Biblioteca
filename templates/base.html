@@ -10,42 +10,63 @@
 </head>
 <body class="{% if user.is_authenticated %}app-body{% else %}public-body{% endif %}">
   {% if user.is_authenticated %}
-  <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <a class="brand brand-side" href="{% url 'panel' %}">
-        <span class="brand-mark">N</span>
-        <span>Nodo<span class="brand-dot">.</span><small>biblioteca SIS</small></span>
-      </a>
-      <nav class="nav-list" aria-label="Menu principal">
-        <a href="{% url 'panel' %}" class="nav-link {% if request.resolver_match.url_name == 'panel' %}active{% endif %}"><span>01</span>Panel</a>
-        <a href="{% url 'catalogo' %}" class="nav-link {% if request.resolver_match.url_name == 'catalogo' %}active{% endif %}"><span>02</span>Catalogo</a>
-        {% if user.is_staff or user.is_superuser or user.tipo_usuario == 'administrador' %}
-          <p class="nav-label">Gestion</p>
-          <a href="{% url 'administrar_libros' %}" class="nav-link {% if 'libro' in request.path %}active{% endif %}"><span>03</span>Libros</a>
-          <a href="{% url 'administrar_prestamos' %}" class="nav-link {% if 'gestion/prestamos' in request.path %}active{% endif %}"><span>04</span>Présstamos</a>
-          <a href="{% url 'reservas' %}" class="nav-link {% if request.resolver_match.url_name == 'reservas' %}active{% endif %}"><span>05</span>Reservas</a>
-          <a href="{% url 'reportes' %}" class="nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}"><span>06</span>Reportes</a>
-        {% else %}
-          <p class="nav-label">Mi cuenta</p>
-          <a href="{% url 'mis_prestamos' %}" class="nav-link {% if request.resolver_match.url_name == 'mis_prestamos' %}active{% endif %}"><span>03</span>Mis prestamos</a>
-          <a href="{% url 'reservas' %}" class="nav-link {% if request.resolver_match.url_name == 'reservas' %}active{% endif %}"><span>04</span>Mis reservas</a>
-        {% endif %}
-      </nav>
-      <div class="sidebar-user">
-        <div class="avatar">{{ user.first_name|default:user.username|slice:':1'|upper }}</div>
-        <div><strong>{{ user.get_full_name|default:user.username }}</strong><small>{{ user.get_tipo_usuario_display }}</small></div>
-        <a href="{% url 'logout' %}" class="exit-link" title="Cerrar sesión">Cerrar sesión</a>
-      </div>
-    </aside>
-    <main class="app-main">
-      <header class="topbar">
-        <button class="menu-button" type="button" data-menu-toggle aria-label="Abrir menu">Menu</button>
-        <div class="crumb">Biblioteca / {% block section %}Panel{% endblock %}</div>
-        <a href="{% url 'notificaciones' %}" class="notification-link" aria-label="Ver notificaciones">Avisos</a>
-      </header>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand brand-side" href="{% url 'panel' %}">
+          <span class="brand-mark">N</span>
+          <span>Nodo<span class="brand-dot">.</span><small>biblioteca SIS</small></span>
+        </a>
+        <nav class="nav-list" aria-label="Menu principal">
+          <a href="{% url 'panel' %}" class="nav-link {% if request.resolver_match.url_name == 'panel' %}active{% endif %}">
+            <span>01</span>Panel
+          </a>
+          <a href="{% url 'catalogo' %}" class="nav-link {% if request.resolver_match.url_name == 'catalogo' %}active{% endif %}">
+            <span>02</span>Catalogo
+          </a>
+          {% if user.is_staff or user.is_superuser or user.tipo_usuario == 'administrador' %}
+            <p class="nav-label">Gestion</p>
+            <a href="{% url 'administrar_libros' %}" class="nav-link {% if 'libro' in request.path %}active{% endif %}">
+              <span>03</span>Libros
+            </a>
+            <a href="{% url 'administrar_prestamos' %}" class="nav-link {% if 'gestion/prestamos' in request.path %}active{% endif %}">
+              <span>04</span>Présstamos
+            </a>
+            <a href="{% url 'reservas' %}" class="nav-link {% if request.resolver_match.url_name == 'reservas' %}active{% endif %}">
+              <span>05</span>Reservas
+            </a>
+            <a href="{% url 'reportes' %}" class="nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}">
+              <span>06</span>Reportes
+            </a>
+          {% else %}
+            <p class="nav-label">Mi cuenta</p>
+            <a href="{% url 'mis_prestamos' %}" class="nav-link {% if request.resolver_match.url_name == 'mis_prestamos' %}active{% endif %}">
+              <span>03</span>Mis prestamos
+            </a>
+            <a href="{% url 'reservas' %}" class="nav-link {% if request.resolver_match.url_name == 'reservas' %}active{% endif %}">
+              <span>04</span>Mis reservas
+            </a>
+          {% endif %}
+        </nav>
+        <div class="sidebar-user">
+          <div class="avatar">{{ user.first_name|default:user.username|slice:':1'|upper }}</div>
+          <div>
+            <strong>{{ user.get_full_name|default:user.username }}</strong>
+            <small>{{ user.get_tipo_usuario_display }}</small>
+          </div>
+          <a href="{% url 'logout' %}" class="exit-link" title="Cerrar sesión">Cerrar sesión</a>
+        </div>
+      </aside>
+      <main class="app-main">
+        <header class="topbar">
+          <button class="menu-button" type="button" data-menu-toggle aria-label="Abrir menu">Menu</button>
+          <div class="crumb">Biblioteca / {% block section %}Panel{% endblock %}</div>
+          <a href="{% url 'notificaciones' %}" class="notification-link" aria-label="Ver notificaciones">Avisos</a>
+        </header>
   {% else %}
     <header class="public-header">
-      <a class="brand" href="{% url 'inicio' %}"><span class="brand-mark">N</span>Nodo<span class="brand-dot">.</span><small>biblioteca SIS</small></a>
+      <a class="brand" href="{% url 'inicio' %}">
+        <span class="brand-mark">N</span>Nodo<span class="brand-dot">.</span><small>biblioteca SIS</small>
+      </a>
       <nav>
         <a href="{% url 'catalogo' %}">Catalogo</a>
         <a href="{% url 'login' %}">Ingresar</a>
@@ -57,12 +78,19 @@
 
   {% if messages %}
     <div class="messages" aria-live="polite">
-      {% for message in messages %}<div class="message message-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+      {% for message in messages %}
+        <div class="message message-{{ message.tags|default:'info' }}">{{ message }}</div>
+      {% endfor %}
     </div>
   {% endif %}
 
   {% block content %}{% endblock %}
 
-  {% if user.is_authenticated %}</main></div>{% else %}</main>{% endif %}
+  {% if user.is_authenticated %}
+      </main>
+    </div>
+  {% else %}
+    </main>
+  {% endif %}
 </body>
 </html>

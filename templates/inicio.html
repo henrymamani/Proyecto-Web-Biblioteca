@@ -11,33 +11,82 @@
       <input id="busqueda" name="q" value="{{ consulta }}" placeholder="Buscar titulo, autor o tema">
       <button class="btn" type="submit">Buscar</button>
     </form>
-    <div class="hero-actions"><a class="text-link" href="{% url 'catalogo' %}">Explorar catalogo <span>-&gt;</span></a></div>
+    <div class="hero-actions">
+      <a class="text-link" href="{% url 'catalogo' %}">
+        Explorar catalogo <span>-&gt;</span>
+      </a>
+    </div>
   </div>
   <div class="hero-panel">
     <span class="panel-index">01 / CONSULTA</span>
-    <div class="book-stack" aria-hidden="true"><i></i><i></i><i></i><b>{ }</b></div>
+    <div class="book-stack" aria-hidden="true">
+      <i></i>
+      <i></i>
+      <i></i>
+      <b>{ }</b>
+    </div>
     <strong>Disponibilidad de libros</strong>
     <p>Consulta los ejemplares disponibles de cada titulo.</p>
-    <div class="mini-stats"><span><b>{{ total_libros }}</b>Titulos</span><span><b>{{ total_disponibles }}</b>Disponibles</span></div>
+    <div class="mini-stats">
+      <span><b>{{ total_libros }}</b>Titulos</span>
+      <span><b>{{ total_disponibles }}</b>Disponibles</span>
+    </div>
   </div>
 </section>
 
 <section class="section-block home-collection">
-  <div class="section-heading"><div><p class="eyebrow">Catalogo</p><h2>Libros registrados</h2></div><a class="text-link" href="{% url 'catalogo' %}">Ver catalogo <span>-&gt;</span></a></div>
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Catalogo</p>
+      <h2>Libros registrados</h2>
+    </div>
+    <a class="text-link" href="{% url 'catalogo' %}">
+      Ver catalogo <span>-&gt;</span>
+    </a>
+  </div>
   <div class="books-grid compact-grid">
     {% for libro in libros %}
       <article class="book-card">
         <div class="book-cover"><span>{{ libro.categoria|slice:':2'|upper }}</span><i></i></div>
-        <div class="book-info"><p>{{ libro.categoria }}</p><h3>{{ libro.titulo }}</h3><small>{{ libro.autor }}</small><div class="book-meta"><span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">{% if libro.disponible %}Disponible{% else %}Sin stock{% endif %}</span><span>{{ libro.stock }} ej.</span></div></div>
+        <div class="book-info">
+          <p>{{ libro.categoria }}</p>
+          <h3>{{ libro.titulo }}</h3>
+          <small>{{ libro.autor }}</small>
+          <div class="book-meta">
+            <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
+              {% if libro.disponible %}Disponible{% else %}Sin stock{% endif %}
+            </span>
+            <span>{{ libro.stock }} ej.</span>
+          </div>
+        </div>
       </article>
     {% empty %}
-      <div class="empty-state full-width"><strong>Aun no hay libros registrados.</strong><p>El administrador puede agregar el primer titulo desde el panel de gestion.</p></div>
+      <div class="empty-state full-width">
+        <strong>Aun no hay libros registrados.</strong>
+        <p>El administrador puede agregar el primer titulo desde el panel de gestion.</p>
+      </div>
     {% endfor %}
   </div>
 </section>
 
 <section class="steps-section">
   <div><p class="eyebrow">Servicios</p><h2>Funciones<br></h2></div>
-  <div class="steps"><div><span>01</span><h3>Registro</h3><p>Los estudiantes crean su cuenta desde este sitio.</p></div><div><span>02</span><h3>Catalogo</h3><p>Consulta titulo, autor, ubicacion y disponibilidad.</p></div><div><span>03</span><h3>Prestamos</h3><p>Controla fechas limite, reservas y devoluciones.</p></div></div>
+  <div class="steps">
+    <div>
+      <span>01</span>
+      <h3>Registro</h3>
+      <p>Los estudiantes crean su cuenta desde este sitio.</p>
+    </div>
+    <div>
+      <span>02</span>
+      <h3>Catalogo</h3>
+      <p>Consulta titulo, autor, ubicacion y disponibilidad.</p>
+    </div>
+    <div>
+      <span>03</span>
+      <h3>Prestamos</h3>
+      <p>Controla fechas limite, reservas y devoluciones.</p>
+    </div>
+  </div>
 </section>
 {% endblock %}

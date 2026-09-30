@@ -2,8 +2,112 @@
 {% block title %}Mi panel | Nodo{% endblock %}
 {% block section %}Mi panel{% endblock %}
 {% block content %}
-<section class="page-head"><div><p class="eyebrow">Cuenta de usuario</p><h1>Mis servicios</h1><p>Consulta prestamos, reservas, multas y avisos.</p></div><div class="head-actions"><a class="btn" href="{% url 'catalogo' %}">Consultar catalogo</a></div></section>
-<section class="member-banner"><div><p class="eyebrow">Capacidad actual</p><h2>Tienes <b>{{ limite_restante }}</b> de {{ user.limite_prestamos }} prestamos disponibles</h2><p>{% if user.tipo_usuario == 'docente' %}Perfil docente: puedes tener hasta 3 libros activos.{% else %}Perfil estudiante: puedes tener hasta 2 libros activos.{% endif %}</p></div><div class="member-number">{{ limite_restante }}<small>libros libres</small></div></section>
-<section class="dashboard-grid user-grid"><article class="panel-card activity-card"><div class="card-heading"><div><p class="eyebrow">Prestamos</p><h2>Libros activos</h2></div><a class="text-link" href="{% url 'mis_prestamos' %}">Ver historial <span>-&gt;</span></a></div><div class="activity-list">{% for prestamo in prestamos %}<div class="loan-row"><div class="book-mini">{{ prestamo.libro.categoria|slice:':2'|upper }}</div><div><strong>{{ prestamo.libro.titulo }}</strong><small>Devolver hasta {{ prestamo.fecha_limite|date:'d/m/Y' }}</small></div><span class="status status-{{ prestamo.estado }}">{{ prestamo.get_estado_display }}</span></div>{% empty %}<div class="empty-inline">No tienes prestamos activos. <a href="{% url 'catalogo' %}">Consultar catalogo.</a></div>{% endfor %}</div></article><article class="panel-card notices-card"><div class="card-heading"><div><p class="eyebrow">Notificaciones</p><h2>Avisos recientes</h2></div><a class="text-link" href="{% url 'notificaciones' %}">Ver todos <span>-&gt;</span></a></div><div class="notice-list">{% for aviso in notificaciones %}<div><i></i><p>{{ aviso.mensaje }}<small>{{ aviso.creada_en|date:'d/m/Y H:i' }}</small></p></div>{% empty %}<div class="empty-inline">No tienes avisos pendientes.</div>{% endfor %}</div></article></section>
-<section class="dashboard-grid user-grid lower-grid"><article class="panel-card"><div class="card-heading"><h2>Reservas pendientes</h2><a class="text-link" href="{% url 'reservas' %}">Ver reservas <span>-&gt;</span></a></div>{% for reserva in reservas %}<div class="simple-line"><span>{{ reserva.libro.titulo }}</span><span class="status status-pendiente">Pendiente</span></div>{% empty %}<div class="empty-inline">No tienes reservas pendientes.</div>{% endfor %}</article><article class="panel-card"><div class="card-heading"><h2>Ultimas devoluciones</h2></div>{% for prestamo in historial %}<div class="simple-line"><span>{{ prestamo.libro.titulo }}</span><small>{{ prestamo.fecha_devolucion|date:'d/m/Y' }}</small></div>{% empty %}<div class="empty-inline">Tu historial aparecera aqui.</div>{% endfor %}</article></section>
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Cuenta de usuario</p>
+    <h1>Mis servicios</h1>
+    <p>Consulta prestamos, reservas, multas y avisos.</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn" href="{% url 'catalogo' %}">Consultar catalogo</a>
+  </div>
+</section>
+
+<section class="member-banner">
+  <div>
+    <p class="eyebrow">Capacidad actual</p>
+    <h2>Tienes <b>{{ limite_restante }}</b> de {{ user.limite_prestamos }} prestamos disponibles</h2>
+    <p>
+      {% if user.tipo_usuario == 'docente' %}
+        Perfil docente: puedes tener hasta 3 libros activos.
+      {% else %}
+        Perfil estudiante: puedes tener hasta 2 libros activos.
+      {% endif %}
+    </p>
+  </div>
+  <div class="member-number">
+    {{ limite_restante }}
+    <small>libros libres</small>
+  </div>
+</section>
+
+<section class="dashboard-grid user-grid">
+  <article class="panel-card activity-card">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Prestamos</p>
+        <h2>Libros activos</h2>
+      </div>
+      <a class="text-link" href="{% url 'mis_prestamos' %}">Ver historial <span>-&gt;</span></a>
+    </div>
+    <div class="activity-list">
+      {% for prestamo in prestamos %}
+        <div class="loan-row">
+          <div class="book-mini">{{ prestamo.libro.categoria|slice:':2'|upper }}</div>
+          <div>
+            <strong>{{ prestamo.libro.titulo }}</strong>
+            <small>Devolver hasta {{ prestamo.fecha_limite|date:'d/m/Y' }}</small>
+          </div>
+          <span class="status status-{{ prestamo.estado }}">{{ prestamo.get_estado_display }}</span>
+        </div>
+      {% empty %}
+        <div class="empty-inline">
+          No tienes prestamos activos.
+          <a href="{% url 'catalogo' %}">Consultar catalogo.</a>
+        </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel-card notices-card">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Notificaciones</p>
+        <h2>Avisos recientes</h2>
+      </div>
+      <a class="text-link" href="{% url 'notificaciones' %}">Ver todos <span>-&gt;</span></a>
+    </div>
+    <div class="notice-list">
+      {% for aviso in notificaciones %}
+        <div>
+          <i></i>
+          <p>{{ aviso.mensaje }}<small>{{ aviso.creada_en|date:'d/m/Y H:i' }}</small></p>
+        </div>
+      {% empty %}
+        <div class="empty-inline">No tienes avisos pendientes.</div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="dashboard-grid user-grid lower-grid">
+  <article class="panel-card">
+    <div class="card-heading">
+      <h2>Reservas pendientes</h2>
+      <a class="text-link" href="{% url 'reservas' %}">Ver reservas <span>-&gt;</span></a>
+    </div>
+    {% for reserva in reservas %}
+      <div class="simple-line">
+        <span>{{ reserva.libro.titulo }}</span>
+        <span class="status status-pendiente">Pendiente</span>
+      </div>
+    {% empty %}
+      <div class="empty-inline">No tienes reservas pendientes.</div>
+    {% endfor %}
+  </article>
+
+  <article class="panel-card">
+    <div class="card-heading">
+      <h2>Ultimas devoluciones</h2>
+    </div>
+    {% for prestamo in historial %}
+      <div class="simple-line">
+        <span>{{ prestamo.libro.titulo }}</span>
+        <small>{{ prestamo.fecha_devolucion|date:'d/m/Y' }}</small>
+      </div>
+    {% empty %}
+      <div class="empty-inline">Tu historial aparecera aqui.</div>
+    {% endfor %}
+  </article>
+</section>
 {% endblock %}
