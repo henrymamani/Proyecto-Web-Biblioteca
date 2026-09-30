@@ -11,8 +11,8 @@ class LibroForm(forms.ModelForm):
             'anio_publicacion', 'ubicacion', 'stock', 'descripcion', 'imagen_url',
         )
         labels = {
-            'isbn': 'ISBN',
-            'anio_publicacion': 'Anio de publicacion',
+            'isbn': 'Codigo',
+            'anio_publicacion': 'Año de publicacion',
             'imagen_url': 'Imagen de portada (URL)',
             'stock': 'Ejemplares disponibles',
         }

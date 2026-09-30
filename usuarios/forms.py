@@ -13,7 +13,7 @@ class RegistroEstudianteForm(UserCreationForm):
         model = Usuario
         fields = ('first_name', 'last_name', 'ru_ci', 'email', 'username', 'password1', 'password2')
         labels = {
-            'ru_ci': 'RU o CI',
+            'ru_ci': 'Carnet de Identidad',
             'username': 'Usuario',
             'password1': 'Contrasena',
             'password2': 'Confirmar contrasena',
