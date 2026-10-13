@@ -13,8 +13,7 @@
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <a class="brand brand-side" href="{% url 'panel' %}">
-          <span class="brand-mark">N</span>
-          <span>Nodo<span class="brand-dot">.</span><small>biblioteca SIS</small></span>
+           <span class="brand-mark"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkdezHnwM4D0SADSwLVvKQoeWPED0an4TPw8CDep2LX3uabChiWdB57Qw&s=10" width="35" height="35"></span><small>biblioteca SIS-INF</small>
         </a>
         <nav class="nav-list" aria-label="Menu principal">
           <a href="{% url 'panel' %}" class="nav-link {% if request.resolver_match.url_name == 'panel' %}active{% endif %}">
@@ -29,7 +28,7 @@
               <span>03</span>Libros
             </a>
             <a href="{% url 'administrar_prestamos' %}" class="nav-link {% if 'gestion/prestamos' in request.path %}active{% endif %}">
-              <span>04</span>Présstamos
+              <span>04</span>Préstamos
             </a>
             <a href="{% url 'reservas' %}" class="nav-link {% if request.resolver_match.url_name == 'reservas' %}active{% endif %}">
               <span>05</span>Reservas
@@ -65,7 +64,7 @@
   {% else %}
     <header class="public-header">
       <a class="brand" href="{% url 'inicio' %}">
-        <span class="brand-mark">N</span>Nodo<span class="brand-dot">.</span><small>biblioteca SIS</small>
+        <span class="brand-mark"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkdezHnwM4D0SADSwLVvKQoeWPED0an4TPw8CDep2LX3uabChiWdB57Qw&s=10" width="35" height="35"></span><small>biblioteca SIS-INF</small>
       </a>
       <nav>
         <a href="{% url 'catalogo' %}">Catalogo</a>
