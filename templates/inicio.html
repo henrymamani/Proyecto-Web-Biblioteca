@@ -5,10 +5,10 @@
   <div class="hero-copy">
     <p class="eyebrow">Biblioteca de la carrera de Sistemas e Informatica </p>
     <h1>Libros de<br><em>Sistemas e Informatica.</em></h1>
-    <p class="hero-text">Busca por titulo, autor o categoria y revisa la disponibilidad antes de solicitar un prestamo.</p>
+    <p class="hero-text">Busca por titulo, autor, ISBN, editorial o etiqueta y revisa la disponibilidad antes de solicitar un prestamo.</p>
     <form class="hero-search" action="{% url 'catalogo' %}" method="get">
       <label class="sr-only" for="busqueda">Buscar un libro</label>
-      <input id="busqueda" name="q" value="{{ consulta }}" placeholder="Buscar titulo, autor o tema">
+      <input id="busqueda" name="q" value="{{ consulta }}" placeholder="Buscar titulo, autor, ISBN o etiqueta">
       <button class="btn" type="submit">Buscar</button>
     </form>
     <div class="hero-actions">
@@ -18,14 +18,11 @@
     </div>
   </div>
   <div class="hero-panel">
-    <span class="panel-index">01 / CONSULTA</span>
-    <div class="book-stack" aria-hidden="true">
-      <i></i>
-      <i></i>
-      <i></i>
-      <b>{ }</b>
-    </div>
-    <strong>Disponibilidad de libros</strong>
+    <span class="panel-index"></span>
+    <div class="book-stack" aria-hidden="true"></div>
+    <strong>Explora nuestro catalogo</strong>
+    <p></p> </p>
+    <p><img src="https://www.sisinf.fni.uto.edu.bo/wp-content/uploads/sisinf2-1536x1157.jpg" height="325" width="auto"></p>
     <p>Consulta los ejemplares disponibles de cada titulo.</p>
     <div class="mini-stats">
       <span><b>{{ total_libros }}</b>Titulos</span>
@@ -47,9 +44,12 @@
   <div class="books-grid compact-grid">
     {% for libro in libros %}
       <article class="book-card">
-        <div class="book-cover"><span>{{ libro.categoria|slice:':2'|upper }}</span><i></i></div>
+        <a class="book-card-main" href="{% url 'detalle_libro' libro.id %}">
+        <div class="book-cover"><span>LB</span><i></i></div>
         <div class="book-info">
-          <p>{{ libro.categoria }}</p>
+          <div class="tag-list compact-tags">
+            {% for etiqueta in libro.etiquetas.all|slice:':2' %}<span>{{ etiqueta.nombre }}</span>{% empty %}<span>Sin etiqueta</span>{% endfor %}
+          </div>
           <h3>{{ libro.titulo }}</h3>
           <small>{{ libro.autor }}</small>
           <div class="book-meta">
@@ -59,6 +59,7 @@
             <span>{{ libro.stock }} ej.</span>
           </div>
         </div>
+        </a>
       </article>
     {% empty %}
       <div class="empty-state full-width">
@@ -69,7 +70,7 @@
   </div>
 </section>
 
-<section class="steps-section">
+<!-- <section class="steps-section">
   <div><p class="eyebrow">Servicios</p><h2>Funciones<br></h2></div>
   <div class="steps">
     <div>
@@ -89,4 +90,4 @@
     </div>
   </div>
 </section>
-{% endblock %}
+{% endblock %} -->

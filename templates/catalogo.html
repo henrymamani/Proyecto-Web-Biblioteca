@@ -1,72 +1,95 @@
 {% extends 'base.html' %}
-{% block title %}Catalogo | Nodo{% endblock %}
-{% block section %}Catalogo{% endblock %}
+{% block title %}Catálogo | Nodo{% endblock %}
+{% block section %}Catálogo{% endblock %}
 {% block content %}
 <section class="page-head catalog-head">
   <div>
-    <p class="eyebrow">Libros</p>
-    <h1>Catalogo de Sistemas e Informatica</h1>
-    <p>Busca por titulo, autor o categoria y revisa existencias.</p>
+    <p class="eyebrow">Colección</p>
+    <h1>Catálogo por etiquetas</h1>
+    <p>Encuentra material por título, autor, ISBN, editorial, descripción o las etiquetas seleccionadas.</p>
   </div>
 </section>
-<form class="catalog-filter" method="get">
+
+<form class="catalog-filter catalog-filter-advanced" method="get">
   <div class="search-input">
-    <label class="sr-only" for="catalog-search">Buscar</label>
-    <input id="catalog-search" name="q" value="{{ consulta }}" placeholder="Buscar por titulo, autor o categoria">
+    <label class="sr-only" for="catalog-search">Buscar en el catálogo</label>
+    <input id="catalog-search" name="q" value="{{ consulta }}" placeholder="Título, autor, ISBN, editorial o tema">
   </div>
-  <select name="categoria">
-    <option value="">Todas las categorias</option>
-    {% for categoria in categorias %}
-      <option value="{{ categoria }}" {% if categoria == categoria_actual %}selected{% endif %}>
-        {{ categoria }}
-      </option>
-    {% endfor %}
-  </select>
-  <button class="btn" type="submit">Filtrar</button>
-  {% if consulta or categoria_actual %}
+  <div class="field catalog-sort">
+    <label for="catalog-order">Ordenar</label>
+    <select id="catalog-order" name="orden">
+      <option value="titulo" {% if orden == 'titulo' %}selected{% endif %}>Título A-Z</option>
+      <option value="autor" {% if orden == 'autor' %}selected{% endif %}>Autor A-Z</option>
+      <option value="recientes" {% if orden == 'recientes' %}selected{% endif %}>Más recientes</option>
+      <option value="disponibilidad" {% if orden == 'disponibilidad' %}selected{% endif %}>Mayor disponibilidad</option>
+    </select>
+  </div>
+  <button class="btn" type="submit">Buscar</button>
+  {% if consulta or etiquetas_activas or orden != 'titulo' %}
     <a class="btn btn-ghost" href="{% url 'catalogo' %}">Limpiar</a>
   {% endif %}
+
+  <fieldset class="tag-filter-set">
+    <legend>Filtrar por etiquetas</legend>
+    <div class="tag-filter-options">
+      {% for etiqueta in etiquetas %}
+        <label class="tag-option">
+          <input type="checkbox" name="etiquetas" value="{{ etiqueta.id }}" {% if etiqueta.id in etiquetas_activas %}checked{% endif %}>
+          <span>{{ etiqueta.nombre }}</span>
+          <small>{{ etiqueta.total }}</small>
+        </label>
+      {% empty %}
+        <p class="empty-inline">El administrador aún no registró etiquetas.</p>
+      {% endfor %}
+    </div>
+  </fieldset>
 </form>
-<div class="catalog-count">{{ libros|length }} resultado(s)</div>
+
+<div class="catalog-count">{{ libros|length }} resultado(s) encontrados</div>
 <section class="books-grid">
   {% for libro in libros %}
     <article class="book-card catalog-card">
-      <div
-        class="book-cover {% if libro.imagen_url %}has-image{% endif %}"
-        {% if libro.imagen_url %}style="background-image:url('{{ libro.imagen_url }}')"{% endif %}
-      >
-        <span>{{ libro.categoria|slice:':2'|upper }}</span>
-        <i></i>
-      </div>
-      <div class="book-info">
-        <p>{{ libro.categoria }}</p>
-        <h3>{{ libro.titulo }}</h3>
-        <small>{{ libro.autor }}</small>
-        <div class="book-details">
-          <span>{{ libro.ubicacion|default:'Sin ubicacion' }}</span>
-          <span>{{ libro.anio_publicacion|default:'--' }}</span>
+      <a class="book-card-main" href="{% url 'detalle_libro' libro.id %}" aria-label="Ver detalle de {{ libro.titulo }}">
+        <div
+          class="book-cover {% if libro.imagen_url %}has-image{% endif %}"
+          {% if libro.imagen_url %}style="background-image:url('{{ libro.imagen_url }}')"{% endif %}
+        >
+          <span>LB</span>
+          <i></i>
         </div>
-        <div class="book-footer">
-          <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
-            {% if libro.disponible %}
-              {{ libro.stock }} disponible(s)
-            {% else %}
-              Sin ejemplares
-            {% endif %}
-          </span>
-          {% if user.is_authenticated and not user.is_staff and not user.is_superuser and user.tipo_usuario != 'administrador' %}
-            <form action="{% url 'crear_reserva' libro.id %}" method="post">
-              {% csrf_token %}
-              <button class="btn btn-small btn-ghost" type="submit">Solicitar reserva</button>
-            </form>
+        <div class="book-info">
+          <div class="tag-list compact-tags">
+            {% for etiqueta in libro.etiquetas.all|slice:':3' %}<span>{{ etiqueta.nombre }}</span>{% empty %}<span>Sin etiqueta</span>{% endfor %}
+          </div>
+          <h3>{{ libro.titulo }}</h3>
+          <small>{{ libro.autor }}</small>
+          <div class="book-details">
+            <span>{{ libro.ubicacion|default:'Sin ubicación' }}</span>
+            <span>{{ libro.anio_publicacion|default:'--' }}</span>
+          </div>
+        </div>
+      </a>
+      <div class="book-footer catalog-footer">
+        <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
+          {% if libro.disponible %}
+            {{ libro.stock }} disponible(s)
+          {% else %}
+            Sin ejemplares
           {% endif %}
-        </div>
+        </span>
+        <a class="text-link card-detail-link" href="{% url 'detalle_libro' libro.id %}">Ver detalle <span>-&gt;</span></a>
+        {% if user.is_authenticated and not user.is_staff and not user.is_superuser and user.tipo_usuario != 'administrador' %}
+          <form action="{% url 'crear_reserva' libro.id %}" method="post">
+            {% csrf_token %}
+            <button class="btn btn-small btn-ghost" type="submit">Reservar</button>
+          </form>
+        {% endif %}
       </div>
     </article>
   {% empty %}
     <div class="empty-state full-width">
       <strong>No encontramos libros con esos datos.</strong>
-      <p>Prueba una busqueda mas amplia o limpia los filtros.</p>
+      <p>Prueba otra búsqueda, selecciona menos etiquetas o limpia los filtros.</p>
     </div>
   {% endfor %}
 </section>

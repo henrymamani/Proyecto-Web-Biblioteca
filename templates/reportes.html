@@ -1,21 +1,109 @@
 {% extends 'base.html' %}
 {% block title %}Reportes | Nodo{% endblock %}
-{% block section %}Gestion / Reportes{% endblock %}
+{% block section %}Gestión / Reportes{% endblock %}
 {% block content %}
-<section class="page-head"><div><p class="eyebrow">Reportes</p><h1>Analisis de biblioteca</h1><p>Filtra los datos por fecha, revisa porcentajes y exporta el detalle de prestamos.</p></div><div class="head-actions"><a class="btn" href="{% url 'exportar_reporte_prestamos' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Exportar CSV</a></div></section>
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Reportes</p>
+    <h1>Análisis de biblioteca</h1>
+    <p>Consulta datos operativos, tendencias, etiquetas, calificaciones y exporta un reporte estructurado.</p>
+  </div>
+  <div class="head-actions"><a class="btn" href="{% url 'exportar_reporte_prestamos' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Exportar CSV</a></div>
+</section>
 
-<section class="report-filter-section"><form class="report-filter" method="get"><input type="hidden" name="vista" value="{{ vista }}"><div class="field"><label for="fecha_inicio">Desde</label><input id="fecha_inicio" type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div><div class="field"><label for="fecha_fin">Hasta</label><input id="fecha_fin" type="date" name="fecha_fin" value="{{ fecha_fin }}"></div><button class="btn" type="submit">Aplicar rango</button>{% if fecha_inicio or fecha_fin %}<a class="btn btn-ghost" href="{% url 'reportes' %}?vista={{ vista }}">Limpiar</a>{% endif %}</form>{% if error_fechas %}<p class="filter-error">{{ error_fechas }}</p>{% endif %}</section>
+<section class="report-filter-section">
+  <form class="report-filter" method="get">
+    <input type="hidden" name="vista" value="{{ vista }}">
+    <div class="field"><label for="fecha_inicio">Desde</label><input id="fecha_inicio" type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
+    <div class="field"><label for="fecha_fin">Hasta</label><input id="fecha_fin" type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
+    <button class="btn" type="submit">Aplicar rango</button>
+    {% if fecha_inicio or fecha_fin %}<a class="btn btn-ghost" href="{% url 'reportes' %}?vista={{ vista }}">Limpiar</a>{% endif %}
+  </form>
+  {% if error_fechas %}<p class="filter-error">{{ error_fechas }}</p>{% endif %}
+</section>
 
-<nav class="report-tabs" aria-label="Submenu de reportes"><a class="{% if vista == 'resumen' %}active{% endif %}" href="{% url 'reportes' %}?vista=resumen&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Resumen</a><a class="{% if vista == 'prestamos' %}active{% endif %}" href="{% url 'reportes' %}?vista=prestamos&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Prestamos</a><a class="{% if vista == 'libros' %}active{% endif %}" href="{% url 'reportes' %}?vista=libros&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Libros mas prestados</a><a class="{% if vista == 'multas' %}active{% endif %}" href="{% url 'reportes' %}?vista=multas&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Multas actuales</a></nav>
+<nav class="report-tabs" aria-label="Secciones de reportes">
+  <a class="{% if vista == 'estadisticas' %}active{% endif %}" href="{% url 'reportes' %}?vista=estadisticas&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Estadísticas</a>
+  <a class="{% if vista == 'prestamos' %}active{% endif %}" href="{% url 'reportes' %}?vista=prestamos&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Préstamos</a>
+  <a class="{% if vista == 'libros' %}active{% endif %}" href="{% url 'reportes' %}?vista=libros&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Libros más prestados</a>
+  <a class="{% if vista == 'multas' %}active{% endif %}" href="{% url 'reportes' %}?vista=multas&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}">Multas actuales</a>
+</nav>
 
-{% if vista == 'resumen' %}
-<section class="metrics-grid report-metrics"><article class="metric-card"><span class="metric-label">Prestamos</span><strong>{{ total_prestamos }}</strong><small>Dentro del rango seleccionado</small></article><article class="metric-card"><span class="metric-label">Devoluciones</span><strong>{{ total_devueltos }}</strong><small>{{ tasa_retorno }}% del total</small></article><article class="metric-card alert-card"><span class="metric-label">Vencidos</span><strong>{{ total_vencidos }}</strong><small>{{ tasa_vencimiento }}% del total</small></article><article class="metric-card"><span class="metric-label">Multas actuales</span><strong>Bs. {{ total_multas_actuales }}</strong><small>Saldo pendiente de usuarios</small></article></section>
-<section class="reports-grid"><article class="panel-card chart-card"><div class="card-heading"><div><p class="eyebrow">Porcentaje</p><h2>Estado de prestamos</h2></div></div><div class="percentage-chart"><div class="donut" style="--complete: {{ tasa_retorno }}%;"><strong>{{ tasa_retorno }}%</strong><small>devuelto</small></div><div class="chart-key"><span><i class="key-returned"></i>Devueltos: {{ total_devueltos }}</span><span><i class="key-pending"></i>Activos o vencidos: {{ total_pendientes }}</span></div></div></article><article class="panel-card chart-card"><div class="card-heading"><div><p class="eyebrow">Usuarios</p><h2>Prestamos por perfil</h2></div></div><div class="bars report-bars">{% for item in perfiles %}<div class="bar-row"><div><span>{{ item.usuario__tipo_usuario|title }}</span><b>{{ item.porcentaje }}%</b></div><i style="--bar: {{ item.porcentaje }}%"></i><small>{{ item.total }} prestamo(s)</small></div>{% empty %}<div class="empty-inline">Sin datos para el rango seleccionado.</div>{% endfor %}</div></article></section>
+{% if vista == 'estadisticas' %}
+<section class="metrics-grid report-metrics statistics-metrics">
+  <article class="metric-card"><span class="metric-label">Préstamos</span><strong>{{ total_prestamos }}</strong><small>Dentro del rango seleccionado</small></article>
+  <article class="metric-card"><span class="metric-label">Activos</span><strong>{{ total_activos }}</strong><small>En circulación</small></article>
+  <article class="metric-card"><span class="metric-label">Devueltos</span><strong>{{ total_devueltos }}</strong><small>Registrados como devueltos</small></article>
+  <article class="metric-card alert-card"><span class="metric-label">Vencidos</span><strong>{{ total_vencidos }}</strong><small>Requieren seguimiento</small></article>
+  <article class="metric-card"><span class="metric-label">Multas actuales</span><strong>Bs. {{ total_multas_actuales }}</strong><small>Saldo pendiente</small></article>
+</section>
+
+<section class="statistics-grid">
+  <article class="panel-card chart-card">
+    <div class="card-heading"><div><p class="eyebrow">Circulación</p><h2>Estado de préstamos</h2></div></div>
+    <div class="chart-list state-chart">
+      {% for estado in estados_prestamo %}
+        <div class="chart-list-row">
+          <span>{{ estado.nombre }}</span>
+          <div class="chart-track"><i class="{{ estado.clase }}" style="--bar: {{ estado.barra }}%"></i></div>
+          <strong>{{ estado.total }}</strong>
+        </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel-card chart-card">
+    <div class="card-heading"><div><p class="eyebrow">Tendencia</p><h2>Préstamos por mes</h2></div></div>
+    <div class="column-chart">
+      {% for item in prestamos_por_mes %}
+        <div class="column-item"><strong>{{ item.total }}</strong><i style="--height: {{ item.barra }}%"></i><span>{{ item.etiqueta }}</span></div>
+      {% empty %}<div class="empty-inline">No hay préstamos para construir la tendencia.</div>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel-card chart-card">
+    <div class="card-heading"><div><p class="eyebrow">Usuarios</p><h2>Préstamos por perfil</h2></div></div>
+    <div class="chart-list">
+      {% for item in perfiles %}
+        <div class="chart-list-row"><span>{{ item.usuario__tipo_usuario|title }}</span><div class="chart-track"><i class="chart-blue" style="--bar: {{ item.barra }}%"></i></div><strong>{{ item.total }}</strong></div>
+      {% empty %}<div class="empty-inline">Sin datos para el rango seleccionado.</div>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel-card chart-card">
+    <div class="card-heading"><div><p class="eyebrow">Clasificación</p><h2>Libros por etiqueta</h2></div></div>
+    <div class="chart-list">
+      {% for etiqueta in etiquetas_populares %}
+        <div class="chart-list-row"><span>{{ etiqueta.nombre }}</span><div class="chart-track"><i class="chart-wine" style="--bar: {{ etiqueta.barra }}%"></i></div><strong>{{ etiqueta.total }}</strong></div>
+      {% empty %}<div class="empty-inline">No hay etiquetas asociadas a libros.</div>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel-card chart-card statistics-wide">
+    <div class="card-heading"><div><p class="eyebrow">Experiencia de lectura</p><h2>Calificaciones de libros</h2></div><span class="record-count">{% if promedio_calificacion %}Promedio {{ promedio_calificacion|floatformat:1 }}/5{% else %}Sin calificaciones{% endif %}</span></div>
+    <div class="rating-chart">
+      <div class="rating-total"><strong>{{ total_resenas }}</strong><span>opiniones registradas</span></div>
+      <div class="chart-list">
+        {% for item in distribucion_calificaciones %}
+          <div class="chart-list-row"><span>{{ item.valor }}/5</span><div class="chart-track"><i class="chart-gold" style="--bar: {{ item.barra }}%"></i></div><strong>{{ item.total }}</strong></div>
+        {% endfor %}
+      </div>
+    </div>
+  </article>
+</section>
 {% elif vista == 'prestamos' %}
-<section class="panel-card records-panel wide-panel"><div class="card-heading"><div><p class="eyebrow">Detalle</p><h2>Prestamos del periodo</h2></div><span class="record-count">{{ total_prestamos }} registros</span></div><div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Libro</th><th>Prestamo</th><th>Limite</th><th>Estado</th></tr></thead><tbody>{% for prestamo in prestamos_detalle %}<tr><td><strong>{{ prestamo.usuario.get_full_name|default:prestamo.usuario.username }}</strong><small>{{ prestamo.usuario.get_tipo_usuario_display }}</small></td><td><strong>{{ prestamo.libro.titulo }}</strong><small>{{ prestamo.libro.autor }}</small></td><td>{{ prestamo.fecha_prestamo|date:'d/m/Y' }}</td><td>{{ prestamo.fecha_limite|date:'d/m/Y' }}</td><td><span class="status status-{{ prestamo.estado }}">{{ prestamo.get_estado_display }}</span></td></tr>{% empty %}<tr><td colspan="5" class="empty-table">No hay prestamos en el rango seleccionado.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel-card records-panel wide-panel">
+  <div class="card-heading"><div><p class="eyebrow">Detalle</p><h2>Préstamos del periodo</h2></div><span class="record-count">{{ total_prestamos }} registros</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Libro</th><th>Préstamo</th><th>Límite</th><th>Estado</th></tr></thead><tbody>{% for prestamo in prestamos_detalle %}<tr><td><strong>{{ prestamo.usuario.get_full_name|default:prestamo.usuario.username }}</strong><small>{{ prestamo.usuario.get_tipo_usuario_display }}</small></td><td><strong>{{ prestamo.libro.titulo }}</strong><small>{{ prestamo.libro.autor }}</small></td><td>{{ prestamo.fecha_prestamo|date:'d/m/Y' }}</td><td>{{ prestamo.fecha_limite|date:'d/m/Y' }}</td><td><span class="status status-{{ prestamo.estado }}">{{ prestamo.get_estado_display }}</span></td></tr>{% empty %}<tr><td colspan="5" class="empty-table">No hay préstamos en el rango seleccionado.</td></tr>{% endfor %}</tbody></table></div>
+</section>
 {% elif vista == 'libros' %}
-<section class="reports-grid single-report-grid"><article class="panel-card report-wide chart-card"><div class="card-heading"><div><p class="eyebrow">Demanda</p><h2>Libros mas prestados</h2></div><span class="record-count">Porcentaje sobre {{ total_prestamos }} prestamos</span></div><div class="popular-chart">{% for item in libros_populares %}<div class="popular-row"><span class="rank-number">{{ forloop.counter }}</span><div class="popular-info"><strong>{{ item.libro__titulo }}</strong><small>{{ item.libro__autor }}</small><i style="--bar: {{ item.porcentaje }}%"></i></div><div class="popular-value"><strong>{{ item.total }}</strong><small>{{ item.porcentaje }}%</small></div></div>{% empty %}<div class="empty-inline">No hay prestamos en el rango seleccionado.</div>{% endfor %}</div></article></section>
+<section class="reports-grid single-report-grid">
+  <article class="panel-card report-wide chart-card"><div class="card-heading"><div><p class="eyebrow">Demanda</p><h2>Libros más prestados</h2></div><span class="record-count">{{ total_prestamos }} préstamos analizados</span></div><div class="popular-chart">{% for item in libros_populares %}<div class="popular-row"><span class="rank-number">{{ forloop.counter }}</span><div class="popular-info"><strong>{{ item.libro__titulo }}</strong><small>{{ item.libro__autor }}</small><i style="--bar: {{ item.barra }}%"></i></div><div class="popular-value"><strong>{{ item.total }}</strong><small>préstamos</small></div></div>{% empty %}<div class="empty-inline">No hay préstamos en el rango seleccionado.</div>{% endfor %}</div></article>
+</section>
 {% elif vista == 'multas' %}
-<section class="panel-card records-panel wide-panel"><div class="card-heading"><div><p class="eyebrow">Saldos pendientes</p><h2>Multa actual por usuario</h2></div><span class="record-count">Bs. {{ total_multas_actuales }}</span></div><div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Perfil</th><th>Prestamos con multa</th><th>Multa actual</th></tr></thead><tbody>{% for multa in multas_usuarios %}<tr><td><strong>{{ multa.nombre }}</strong><small>{{ multa.prestamo__usuario__username }}</small></td><td>{{ multa.prestamo__usuario__tipo_usuario|title }}</td><td>{{ multa.prestamos_con_multa }}</td><td><strong class="fine-amount">Bs. {{ multa.multa_actual }}</strong></td></tr>{% empty %}<tr><td colspan="4" class="empty-table">No hay multas pendientes.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel-card records-panel wide-panel">
+  <div class="card-heading"><div><p class="eyebrow">Saldos pendientes</p><h2>Multa actual por usuario</h2></div><span class="record-count">Bs. {{ total_multas_actuales }}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Perfil</th><th>Préstamos con multa</th><th>Multa actual</th></tr></thead><tbody>{% for multa in multas_usuarios %}<tr><td><strong>{{ multa.nombre }}</strong><small>{{ multa.prestamo__usuario__username }}</small></td><td>{{ multa.prestamo__usuario__tipo_usuario|title }}</td><td>{{ multa.prestamos_con_multa }}</td><td><strong class="fine-amount">Bs. {{ multa.multa_actual }}</strong></td></tr>{% empty %}<tr><td colspan="4" class="empty-table">No hay multas pendientes.</td></tr>{% endfor %}</tbody></table></div>
+</section>
 {% endif %}
 {% endblock %}

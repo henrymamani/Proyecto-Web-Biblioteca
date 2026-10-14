@@ -18,7 +18,6 @@ class FlujoAutorizacionReservasTests(TestCase):
             titulo='Algoritmos',
             autor='Ada Lovelace',
             isbn='978-0-123456-47-2',
-            categoria='Informatica',
             stock=2,
         )
         self.estudiante = Usuario.objects.create_user(

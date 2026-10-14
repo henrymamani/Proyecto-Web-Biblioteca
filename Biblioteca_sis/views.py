@@ -1,16 +1,18 @@
 import csv
+from collections import Counter
 from datetime import datetime
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Count, Sum
+from django.db import IntegrityError
+from django.db.models import Avg, Count, Q, Sum
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
-from catalogo.forms import LibroForm
-from catalogo.models import Libro
+from catalogo.forms import EtiquetaForm, LibroForm, ResenaForm
+from catalogo.models import Etiqueta, Libro, Resena
 from prestamos.models import Multa, Notificacion, Prestamo, Reserva
 from prestamos.services import (
     ReglaPrestamoError,
@@ -30,13 +32,33 @@ def es_administrador(usuario):
 administrador_requerido = user_passes_test(es_administrador)
 
 
+NOMBRES_MESES = (
+    'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+)
+
+
+def _filtrar_libros_por_consulta(libros, consulta):
+    if not consulta:
+        return libros
+    return libros.filter(
+        Q(titulo__icontains=consulta)
+        | Q(autor__icontains=consulta)
+        | Q(isbn__icontains=consulta)
+        | Q(editorial__icontains=consulta)
+        | Q(descripcion__icontains=consulta)
+        | Q(etiquetas__nombre__icontains=consulta)
+    ).distinct()
+
+
 def inicio(request):
     if request.user.is_authenticated:
         return redirect('panel')
     consulta = request.GET.get('q', '').strip()
-    libros = Libro.objects.filter(stock__gte=0).order_by('titulo')
-    if consulta:
-        libros = libros.filter(titulo__icontains=consulta) | libros.filter(autor__icontains=consulta)
+    libros = _filtrar_libros_por_consulta(
+        Libro.objects.filter(stock__gte=0).prefetch_related('etiquetas'),
+        consulta,
+    ).order_by('titulo')
     return render(request, 'inicio.html', {
         'libros': libros[:6],
         'consulta': consulta,
@@ -76,7 +98,7 @@ def panel(request):
             'prestamos_activos': prestamos.filter(estado='activo').count(),
             'prestamos_vencidos': prestamos.filter(estado='vencido').count(),
             'multas_pendientes': Multa.objects.filter(pagada=False).aggregate(total=Sum('monto'))['total'] or 0,
-            'categorias': Libro.objects.values('categoria').annotate(total=Count('id')).order_by('-total')[:5],
+            'etiquetas': Etiqueta.objects.annotate(total=Count('libros')).order_by('-total', 'nombre')[:5],
             'notificaciones': Notificacion.objects.filter(leida=False).count(),
         })
 
@@ -92,18 +114,96 @@ def panel(request):
 
 def catalogo(request):
     consulta = request.GET.get('q', '').strip()
-    categoria = request.GET.get('categoria', '').strip()
-    libros = Libro.objects.all().order_by('titulo')
-    if consulta:
-        libros = libros.filter(titulo__icontains=consulta) | libros.filter(autor__icontains=consulta) | libros.filter(categoria__icontains=consulta)
-    if categoria:
-        libros = libros.filter(categoria=categoria)
+    etiquetas_activas = [
+        int(etiqueta_id)
+        for etiqueta_id in request.GET.getlist('etiquetas')
+        if etiqueta_id.isdigit()
+    ]
+    orden = request.GET.get('orden', 'titulo')
+    ordenes = {
+        'titulo': ('titulo', 'autor'),
+        'autor': ('autor', 'titulo'),
+        'recientes': ('-creado_en', 'titulo'),
+        'disponibilidad': ('-stock', 'titulo'),
+    }
+    if orden not in ordenes:
+        orden = 'titulo'
+
+    libros = _filtrar_libros_por_consulta(
+        Libro.objects.all().prefetch_related('etiquetas'),
+        consulta,
+    )
+    if etiquetas_activas:
+        libros = libros.filter(etiquetas__id__in=etiquetas_activas).distinct()
+    libros = libros.order_by(*ordenes[orden])
     return render(request, 'catalogo.html', {
         'libros': libros,
         'consulta': consulta,
-        'categoria_actual': categoria,
-        'categorias': Libro.objects.values_list('categoria', flat=True).distinct().order_by('categoria'),
+        'etiquetas': Etiqueta.objects.annotate(total=Count('libros')).order_by('nombre'),
+        'etiquetas_activas': etiquetas_activas,
+        'orden': orden,
     })
+
+
+def detalle_libro(request, libro_id):
+    libro = get_object_or_404(
+        Libro.objects.prefetch_related('etiquetas', 'resenas__usuario'),
+        pk=libro_id,
+    )
+    resenas = libro.resenas.select_related('usuario').all()
+    resumen_calificaciones = resenas.aggregate(promedio=Avg('calificacion'), total=Count('id'))
+    resena_usuario = None
+    if request.user.is_authenticated:
+        resena_usuario = resenas.filter(usuario=request.user).first()
+
+    return render(request, 'detalle_libro.html', {
+        'libro': libro,
+        'resenas': resenas,
+        'promedio_calificacion': resumen_calificaciones['promedio'],
+        'total_calificaciones': resumen_calificaciones['total'],
+        'resena_usuario': resena_usuario,
+        'form_resena': ResenaForm(),
+    })
+
+
+@login_required
+def crear_resena(request, libro_id):
+    if request.method != 'POST':
+        return HttpResponseForbidden('Accion no permitida.')
+
+    libro = get_object_or_404(Libro, pk=libro_id)
+    if Resena.objects.filter(libro=libro, usuario=request.user).exists():
+        messages.info(request, 'Ya registraste una calificacion y comentario para este libro.')
+        return redirect('detalle_libro', libro_id=libro.id)
+
+    form = ResenaForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'Completa una calificacion y un comentario valido antes de publicarlo.')
+        return redirect('detalle_libro', libro_id=libro.id)
+
+    try:
+        Resena.objects.create(
+            libro=libro,
+            usuario=request.user,
+            calificacion=form.cleaned_data['calificacion'],
+            comentario=form.cleaned_data['comentario'],
+        )
+    except IntegrityError:
+        messages.info(request, 'Ya registraste una calificacion y comentario para este libro.')
+    else:
+        messages.success(request, 'Tu calificacion y comentario fueron publicados.')
+    return redirect('detalle_libro', libro_id=libro.id)
+
+
+@administrador_requerido
+def eliminar_resena(request, resena_id):
+    if request.method != 'POST':
+        return HttpResponseForbidden('Accion no permitida.')
+    resena = get_object_or_404(Resena, pk=resena_id)
+    libro_id = resena.libro_id
+    resena.delete()
+    messages.success(request, 'El comentario fue eliminado del catalogo.')
+    return redirect('detalle_libro', libro_id=libro_id)
 
 
 @administrador_requerido
@@ -117,8 +217,32 @@ def administrar_libros(request, libro_id=None):
     return render(request, 'administrar_libros.html', {
         'form': form,
         'libro_editando': libro,
-        'libros': Libro.objects.all().order_by('titulo'),
+        'libros': Libro.objects.prefetch_related('etiquetas').order_by('titulo'),
     })
+
+
+@administrador_requerido
+def administrar_etiquetas(request):
+    form = EtiquetaForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        etiqueta = form.save()
+        messages.success(request, f'La etiqueta {etiqueta.nombre} fue creada.')
+        return redirect('administrar_etiquetas')
+    return render(request, 'administrar_etiquetas.html', {
+        'form': form,
+        'etiquetas': Etiqueta.objects.annotate(total=Count('libros')).order_by('nombre'),
+    })
+
+
+@administrador_requerido
+def eliminar_etiqueta(request, etiqueta_id):
+    if request.method != 'POST':
+        return HttpResponseForbidden('Accion no permitida.')
+    etiqueta = get_object_or_404(Etiqueta, pk=etiqueta_id)
+    nombre = etiqueta.nombre
+    etiqueta.delete()
+    messages.success(request, f'La etiqueta {nombre} fue eliminada.')
+    return redirect('administrar_etiquetas')
 
 
 @administrador_requerido
@@ -228,24 +352,72 @@ def reportes(request):
 
     total_prestamos = prestamos.count()
     total_devueltos = prestamos.filter(estado='devuelto').count()
+    total_activos = prestamos.filter(estado='activo').count()
     total_vencidos = prestamos.filter(estado='vencido').count()
-    tasa_retorno = round((total_devueltos / total_prestamos * 100), 1) if total_prestamos else 0
-    tasa_vencimiento = round((total_vencidos / total_prestamos * 100), 1) if total_prestamos else 0
     libros_populares = list(
         prestamos.values('libro__titulo', 'libro__autor')
         .annotate(total=Count('id'))
         .order_by('-total', 'libro__titulo')[:8]
     )
+    max_prestamos_libro = max((libro['total'] for libro in libros_populares), default=1)
     for libro in libros_populares:
-        libro['porcentaje'] = round((libro['total'] / total_prestamos * 100), 1) if total_prestamos else 0
+        libro['barra'] = round(libro['total'] / max_prestamos_libro * 100)
 
     perfiles = list(
         prestamos.values('usuario__tipo_usuario')
         .annotate(total=Count('id'))
         .order_by('-total')
     )
+    max_prestamos_perfil = max((perfil['total'] for perfil in perfiles), default=1)
     for perfil in perfiles:
-        perfil['porcentaje'] = round((perfil['total'] / total_prestamos * 100), 1) if total_prestamos else 0
+        perfil['barra'] = round(perfil['total'] / max_prestamos_perfil * 100)
+
+    estados_prestamo = [
+        {'nombre': 'Activos', 'total': total_activos, 'clase': 'chart-blue'},
+        {'nombre': 'Devueltos', 'total': total_devueltos, 'clase': 'chart-green'},
+        {'nombre': 'Vencidos', 'total': total_vencidos, 'clase': 'chart-red'},
+    ]
+    max_estado = max((estado['total'] for estado in estados_prestamo), default=1)
+    for estado in estados_prestamo:
+        estado['barra'] = round(estado['total'] / max_estado * 100) if max_estado else 0
+
+    conteo_mensual = Counter(
+        (prestamo.fecha_prestamo.year, prestamo.fecha_prestamo.month)
+        for prestamo in prestamos
+    )
+    prestamos_por_mes = [
+        {
+            'etiqueta': f'{NOMBRES_MESES[mes - 1]} {str(anio)[-2:]}',
+            'total': total,
+        }
+        for (anio, mes), total in sorted(conteo_mensual.items())[-8:]
+    ]
+    max_mensual = max((item['total'] for item in prestamos_por_mes), default=1)
+    for item in prestamos_por_mes:
+        item['barra'] = round(item['total'] / max_mensual * 100)
+
+    etiquetas_populares = list(
+        Etiqueta.objects.annotate(total=Count('libros')).filter(total__gt=0).order_by('-total', 'nombre')[:8]
+    )
+    max_etiquetas = max((etiqueta.total for etiqueta in etiquetas_populares), default=1)
+    for etiqueta in etiquetas_populares:
+        etiqueta.barra = round(etiqueta.total / max_etiquetas * 100)
+
+    resumen_resenas = Resena.objects.aggregate(
+        promedio=Avg('calificacion'),
+        total=Count('id'),
+    )
+    calificaciones = list(
+        Resena.objects.values('calificacion').annotate(total=Count('id')).order_by('calificacion')
+    )
+    calificaciones_por_valor = {item['calificacion']: item['total'] for item in calificaciones}
+    distribucion_calificaciones = [
+        {'valor': valor, 'total': calificaciones_por_valor.get(valor, 0)}
+        for valor in range(5, 0, -1)
+    ]
+    max_calificaciones = max((item['total'] for item in distribucion_calificaciones), default=1)
+    for item in distribucion_calificaciones:
+        item['barra'] = round(item['total'] / max_calificaciones * 100) if max_calificaciones else 0
 
     multas_usuarios = list(
         Multa.objects.filter(pagada=False)
@@ -257,9 +429,9 @@ def reportes(request):
     for item in multas_usuarios:
         item['nombre'] = ' '.join(filter(None, [item['prestamo__usuario__first_name'], item['prestamo__usuario__last_name']])) or item['prestamo__usuario__username']
 
-    vista = request.GET.get('vista', 'resumen')
-    if vista not in {'resumen', 'prestamos', 'libros', 'multas'}:
-        vista = 'resumen'
+    vista = request.GET.get('vista', 'estadisticas')
+    if vista not in {'estadisticas', 'prestamos', 'libros', 'multas'}:
+        vista = 'estadisticas'
 
     return render(request, 'reportes.html', {
         'vista': vista,
@@ -268,12 +440,16 @@ def reportes(request):
         'error_fechas': error_fechas,
         'total_prestamos': total_prestamos,
         'total_devueltos': total_devueltos,
-        'total_pendientes': total_prestamos - total_devueltos,
+        'total_activos': total_activos,
         'total_vencidos': total_vencidos,
-        'tasa_retorno': tasa_retorno,
-        'tasa_vencimiento': tasa_vencimiento,
+        'estados_prestamo': estados_prestamo,
+        'prestamos_por_mes': prestamos_por_mes,
         'libros_populares': libros_populares,
         'perfiles': perfiles,
+        'etiquetas_populares': etiquetas_populares,
+        'promedio_calificacion': resumen_resenas['promedio'],
+        'total_resenas': resumen_resenas['total'],
+        'distribucion_calificaciones': distribucion_calificaciones,
         'multas_usuarios': multas_usuarios,
         'total_multas_actuales': total_multas_actuales,
         'prestamos_detalle': prestamos[:100],
@@ -287,39 +463,53 @@ def exportar_reporte_prestamos(request):
     respuesta = HttpResponse(content_type='text/csv; charset=utf-8')
     sufijo = f'_{fecha_inicio:%Y%m%d}' if fecha_inicio else ''
     sufijo += f'_{fecha_fin:%Y%m%d}' if fecha_fin else ''
-    respuesta['Content-Disposition'] = f'attachment; filename="reporte_prestamos{sufijo}.csv"'
+    respuesta['Content-Disposition'] = f'attachment; filename="reporte_biblioteca{sufijo}.csv"'
     respuesta.write('\ufeff')
-    escritor = csv.writer(respuesta)
-    escritor.writerow(['REPORTE DE PRESTAMOS'])
-    escritor.writerow(['Desde', fecha_inicio or 'Inicio de registros', 'Hasta', fecha_fin or 'Hoy'])
+    escritor = csv.writer(respuesta, delimiter=';', lineterminator='\n')
+    escritor.writerow(['REPORTE DE PRÉSTAMOS | BIBLIOTECA SIS-INF'])
+    escritor.writerow(['Periodo desde', fecha_inicio.strftime('%d/%m/%Y') if fecha_inicio else 'Inicio de registros'])
+    escritor.writerow(['Periodo hasta', fecha_fin.strftime('%d/%m/%Y') if fecha_fin else 'Hoy'])
     escritor.writerow([])
-    escritor.writerow(['DETALLE DE PRESTAMOS'])
-    escritor.writerow(['Usuario', 'Tipo', 'Libro', 'Autor', 'Fecha prestamo', 'Fecha limite', 'Devolucion', 'Estado', 'Multa actual'])
-    prestamos = Prestamo.objects.select_related('usuario', 'libro').order_by('-fecha_prestamo')
+    prestamos = Prestamo.objects.select_related('usuario', 'libro', 'multa').prefetch_related('libro__etiquetas').order_by('-fecha_prestamo')
     if fecha_inicio:
         prestamos = prestamos.filter(fecha_prestamo__gte=fecha_inicio)
     if fecha_fin:
         prestamos = prestamos.filter(fecha_prestamo__lte=fecha_fin)
+
+    total_prestamos = prestamos.count()
+    escritor.writerow(['RESUMEN OPERATIVO'])
+    escritor.writerow(['Indicador', 'Cantidad'])
+    escritor.writerow(['Préstamos registrados', total_prestamos])
+    escritor.writerow(['Activos', prestamos.filter(estado='activo').count()])
+    escritor.writerow(['Devueltos', prestamos.filter(estado='devuelto').count()])
+    escritor.writerow(['Vencidos', prestamos.filter(estado='vencido').count()])
+    escritor.writerow([])
+    escritor.writerow(['DETALLE DE PRESTAMOS'])
+    escritor.writerow([
+        'Usuario', 'Perfil', 'Código/ISBN', 'Libro', 'Autor', 'Etiquetas',
+        'Fecha préstamo', 'Fecha límite', 'Fecha devolución', 'Estado', 'Multa pendiente (Bs.)',
+    ])
     for prestamo in prestamos:
         multa = getattr(prestamo, 'multa', None)
         escritor.writerow([
             prestamo.usuario.get_full_name() or prestamo.usuario.username,
-            prestamo.usuario.tipo_usuario,
+            prestamo.usuario.get_tipo_usuario_display(),
+            prestamo.libro.isbn or 'Sin código',
             prestamo.libro.titulo,
             prestamo.libro.autor,
-            prestamo.fecha_prestamo,
-            prestamo.fecha_limite,
-            prestamo.fecha_devolucion or '',
-            prestamo.estado,
-            multa.monto if multa and not multa.pagada else '0.00',
+            ', '.join(etiqueta.nombre for etiqueta in prestamo.libro.etiquetas.all()) or 'Sin etiquetas',
+            prestamo.fecha_prestamo.strftime('%d/%m/%Y'),
+            prestamo.fecha_limite.strftime('%d/%m/%Y'),
+            prestamo.fecha_devolucion.strftime('%d/%m/%Y') if prestamo.fecha_devolucion else 'Pendiente',
+            prestamo.get_estado_display(),
+            f'{multa.monto:.2f}' if multa and not multa.pagada else '0.00',
         ])
     escritor.writerow([])
-    escritor.writerow(['LIBROS MAS PRESTADOS'])
-    escritor.writerow(['Libro', 'Prestamos', 'Porcentaje'])
-    total = prestamos.count()
-    populares = prestamos.values('libro__titulo').annotate(total=Count('id')).order_by('-total', 'libro__titulo')[:10]
+    escritor.writerow(['LIBROS MÁS SOLICITADOS'])
+    escritor.writerow(['Libro', 'Autor', 'Préstamos'])
+    populares = prestamos.values('libro__titulo', 'libro__autor').annotate(total=Count('id')).order_by('-total', 'libro__titulo')[:10]
     for item in populares:
-        escritor.writerow([item['libro__titulo'], item['total'], f"{round(item['total'] / total * 100, 1) if total else 0}%"])
+        escritor.writerow([item['libro__titulo'], item['libro__autor'], item['total']])
     return respuesta
 
 

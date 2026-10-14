@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Etiquetas | Nodo{% endblock %}
+{% block section %}Gestión / Etiquetas{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Organización del catálogo</p>
+    <h1>Etiquetas disponibles</h1>
+    <p>Crea las etiquetas que podrá seleccionar el administrador al registrar libros y los lectores al filtrar el catálogo.</p>
+  </div>
+</section>
+
+<section class="management-layout tag-management-layout">
+  <article class="panel-card form-panel">
+    <div class="card-heading"><div><p class="eyebrow">Nueva etiqueta</p><h2>Ampliar opciones</h2></div></div>
+    <form method="post" class="form-grid">
+      {% csrf_token %}
+      <div class="field field-wide">
+        <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+        {{ form.nombre }}
+        {{ form.nombre.errors }}
+      </div>
+      <div class="field-wide"><button class="btn" type="submit">Crear etiqueta</button></div>
+    </form>
+  </article>
+
+  <article class="panel-card records-panel">
+    <div class="card-heading"><div><p class="eyebrow">Selección actual</p><h2>Etiquetas del catálogo</h2></div><span class="record-count">{{ etiquetas|length }} etiquetas</span></div>
+    <div class="tag-admin-list">
+      {% for etiqueta in etiquetas %}
+        <div>
+          <span>{{ etiqueta.nombre }}</span>
+          <small>{{ etiqueta.total }} libro(s)</small>
+          <form method="post" action="{% url 'eliminar_etiqueta' etiqueta.id %}">
+            {% csrf_token %}
+            <button class="table-link delete-review" type="submit">Eliminar</button>
+          </form>
+        </div>
+      {% empty %}
+        <div class="empty-inline">Aún no hay etiquetas disponibles.</div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

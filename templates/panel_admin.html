@@ -66,14 +66,14 @@
     <div class="card-heading">
       <div>
         <p class="eyebrow">Inventario</p>
-        <h2>Libros por categoria</h2>
+        <h2>Libros por etiqueta</h2>
       </div>
     </div>
     <div class="bars">
-      {% for item in categorias %}
+      {% for item in etiquetas %}
         <div class="bar-row">
           <div>
-            <span>{{ item.categoria }}</span>
+            <span>{{ item.nombre }}</span>
             <b>{{ item.total }}</b>
           </div>
           <i style="--bar: {% widthratio item.total total_titulos 100 %}%"></i>
@@ -102,4 +102,5 @@
     <small>Datos y exportacion</small>
   </a>
 </section>
+
 {% endblock %}

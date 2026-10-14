@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}{{ libro.titulo }} | Nodo{% endblock %}
+{% block section %}Catálogo / {{ libro.titulo }}{% endblock %}
+{% block content %}
+<section class="book-detail-layout">
+  <div class="detail-cover {% if libro.imagen_url %}has-image{% endif %}" {% if libro.imagen_url %}style="background-image:url('{{ libro.imagen_url }}')"{% endif %}>
+    {% if not libro.imagen_url %}<span>LB</span>{% endif %}
+  </div>
+  <div class="book-detail-copy">
+    <a class="back-link" href="{% url 'catalogo' %}">&larr; Volver al catálogo</a>
+    <div class="tag-list detail-tags">
+      {% for etiqueta in libro.etiquetas.all %}<span>{{ etiqueta.nombre }}</span>{% empty %}<span>Sin etiquetas</span>{% endfor %}
+    </div>
+    <h1>{{ libro.titulo }}</h1>
+    <span>Autor: </span>
+    <p class="book-author">{{ libro.autor }}</p>
+    <div class="book-detail-facts">
+      <div><span>Editorial </span><strong>{{ libro.editorial|default:'No especificada' }}</strong></div>
+      <div><span>Año </span><strong>{{ libro.anio_publicacion|default:'No especificado' }}</strong></div>
+      <div><span>Ubicación </span><strong>{{ libro.ubicacion|default:'Sin ubicación' }}</strong></div>
+      <div><span>ISBN </span><strong>{{ libro.isbn|default:'Sin código' }}</strong></div>
+    </div>
+    <div class="detail-availability">
+      <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
+        {% if libro.disponible %}{{ libro.stock }} ejemplar(es) disponible(s){% else %}Sin ejemplares disponibles{% endif %}
+      </span>
+      {% if user.is_authenticated and not user.is_staff and not user.is_superuser and user.tipo_usuario != 'administrador' %}
+        <form action="{% url 'crear_reserva' libro.id %}" method="post">
+          {% csrf_token %}
+          <button class="btn" type="submit">Solicitar reserva</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="detail-content-grid">
+  <article class="detail-section">
+    <p class="eyebrow">Descripción</p>
+    <h2>Sobre este libro</h2>
+    <p class="description-text">{{ libro.descripcion|default:'El administrador aún no añadió una descripción para este libro.'|linebreaksbr }}</p>
+  </article>
+  <article class="detail-section rating-summary">
+    <p class="eyebrow">Opiniones</p>
+    <h2>Calificación de lectores</h2>
+    {% if total_calificaciones %}
+      <strong>{{ promedio_calificacion|floatformat:1 }}<small>/5</small></strong>
+      <p>{{ total_calificaciones }} calificación(es) registrada(s)</p>
+    {% else %}
+      <strong>--</strong>
+      <p>Aún no hay calificaciones.</p>
+    {% endif %}
+  </article>
+</section>
+
+<section class="reviews-section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Comunidad</p>
+      <h2>Comentarios y calificaciones</h2>
+    </div>
+  </div>
+
+  {% if user.is_authenticated %}
+    {% if resena_usuario %}
+      <div class="review-notice">Ya registraste tu calificación de {{ resena_usuario.calificacion }}/5 para este libro. Cada usuario puede publicar una sola vez.</div>
+    {% else %}
+      <form class="review-form" method="post" action="{% url 'crear_resena' libro.id %}">
+        {% csrf_token %}
+        <div class="field">{{ form_resena.calificacion.label_tag }}{{ form_resena.calificacion }}{{ form_resena.calificacion.errors }}</div>
+        <div class="field review-comment-field">{{ form_resena.comentario.label_tag }}{{ form_resena.comentario }}{{ form_resena.comentario.errors }}</div>
+        <button class="btn" type="submit">Publicar opinión</button>
+      </form>
+    {% endif %}
+  {% else %}
+    <div class="review-notice">Ingresa con tu cuenta para comentar y calificar este libro.</div>
+  {% endif %}
+
+  <div class="review-list">
+    {% for resena in resenas %}
+      <article class="review-item">
+        <div class="review-avatar">{{ resena.usuario.first_name|default:resena.usuario.username|slice:':1'|upper }}</div>
+        <div class="review-body">
+          <div class="review-meta"><strong>{{ resena.usuario.get_full_name|default:resena.usuario.username }}</strong><span>{{ resena.calificacion }}/5</span></div>
+          <small>{{ resena.usuario.get_tipo_usuario_display }} · {{ resena.creada_en|date:'d/m/Y H:i' }}</small>
+          <p>{{ resena.comentario|linebreaksbr }}</p>
+        </div>
+        {% if user.is_staff or user.is_superuser or user.tipo_usuario == 'administrador' %}
+          <form action="{% url 'eliminar_resena' resena.id %}" method="post">
+            {% csrf_token %}
+            <button class="table-link delete-review" type="submit">Eliminar</button>
+          </form>
+        {% endif %}
+      </article>
+    {% empty %}
+      <div class="empty-state"><strong>Aún no hay opiniones.</strong><p>La primera calificación puede ayudar a otros lectores.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

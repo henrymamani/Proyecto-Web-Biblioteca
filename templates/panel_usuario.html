@@ -43,7 +43,7 @@
     <div class="activity-list">
       {% for prestamo in prestamos %}
         <div class="loan-row">
-          <div class="book-mini">{{ prestamo.libro.categoria|slice:':2'|upper }}</div>
+          <div class="book-mini">LB</div>
           <div>
             <strong>{{ prestamo.libro.titulo }}</strong>
             <small>Devolver hasta {{ prestamo.fecha_limite|date:'d/m/Y' }}</small>
