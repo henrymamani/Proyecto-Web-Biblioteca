@@ -1,4 +1,6 @@
 import csv
+from datetime import datetime
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -145,9 +147,11 @@ def devolver_prestamo(request, prestamo_id):
 def mis_prestamos(request):
     actualizar_sistema()
     prestamos = Prestamo.objects.filter(usuario=request.user).select_related('libro').order_by('-fecha_prestamo')
+    multas = Multa.objects.filter(prestamo__usuario=request.user, pagada=False).select_related('prestamo__libro')
     return render(request, 'mis_prestamos.html', {
         'prestamos': prestamos,
-        'multas': Multa.objects.filter(prestamo__usuario=request.user, pagada=False).select_related('prestamo__libro'),
+        'multas': multas,
+        'multa_actual': multas.aggregate(total=Sum('monto'))['total'] or Decimal('0.00'),
     })
 
 
@@ -215,35 +219,119 @@ def notificaciones(request):
 @administrador_requerido
 def reportes(request):
     actualizar_sistema()
-    por_categoria = list(Libro.objects.values('categoria').annotate(total=Count('id')).order_by('-total'))
+    fecha_inicio, fecha_fin, error_fechas = _rango_fechas(request)
+    prestamos = Prestamo.objects.select_related('usuario', 'libro').order_by('-fecha_prestamo')
+    if fecha_inicio:
+        prestamos = prestamos.filter(fecha_prestamo__gte=fecha_inicio)
+    if fecha_fin:
+        prestamos = prestamos.filter(fecha_prestamo__lte=fecha_fin)
+
+    total_prestamos = prestamos.count()
+    total_devueltos = prestamos.filter(estado='devuelto').count()
+    total_vencidos = prestamos.filter(estado='vencido').count()
+    tasa_retorno = round((total_devueltos / total_prestamos * 100), 1) if total_prestamos else 0
+    tasa_vencimiento = round((total_vencidos / total_prestamos * 100), 1) if total_prestamos else 0
+    libros_populares = list(
+        prestamos.values('libro__titulo', 'libro__autor')
+        .annotate(total=Count('id'))
+        .order_by('-total', 'libro__titulo')[:8]
+    )
+    for libro in libros_populares:
+        libro['porcentaje'] = round((libro['total'] / total_prestamos * 100), 1) if total_prestamos else 0
+
+    perfiles = list(
+        prestamos.values('usuario__tipo_usuario')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    for perfil in perfiles:
+        perfil['porcentaje'] = round((perfil['total'] / total_prestamos * 100), 1) if total_prestamos else 0
+
+    multas_usuarios = list(
+        Multa.objects.filter(pagada=False)
+        .values('prestamo__usuario__first_name', 'prestamo__usuario__last_name', 'prestamo__usuario__username', 'prestamo__usuario__tipo_usuario')
+        .annotate(multa_actual=Sum('monto'), prestamos_con_multa=Count('id'))
+        .order_by('-multa_actual')
+    )
+    total_multas_actuales = sum((item['multa_actual'] for item in multas_usuarios), Decimal('0.00'))
+    for item in multas_usuarios:
+        item['nombre'] = ' '.join(filter(None, [item['prestamo__usuario__first_name'], item['prestamo__usuario__last_name']])) or item['prestamo__usuario__username']
+
+    vista = request.GET.get('vista', 'resumen')
+    if vista not in {'resumen', 'prestamos', 'libros', 'multas'}:
+        vista = 'resumen'
+
     return render(request, 'reportes.html', {
-        'por_categoria': por_categoria,
-        'usuarios_por_tipo': list(
-            Prestamo.objects.values('usuario__tipo_usuario').annotate(total=Count('id')).order_by('-total')
-        ),
-        'libros_populares': Prestamo.objects.values('libro__titulo').annotate(total=Count('id')).order_by('-total')[:5],
-        'total_prestamos': Prestamo.objects.count(),
-        'total_devueltos': Prestamo.objects.filter(estado='devuelto').count(),
+        'vista': vista,
+        'fecha_inicio': fecha_inicio.isoformat() if fecha_inicio else '',
+        'fecha_fin': fecha_fin.isoformat() if fecha_fin else '',
+        'error_fechas': error_fechas,
+        'total_prestamos': total_prestamos,
+        'total_devueltos': total_devueltos,
+        'total_pendientes': total_prestamos - total_devueltos,
+        'total_vencidos': total_vencidos,
+        'tasa_retorno': tasa_retorno,
+        'tasa_vencimiento': tasa_vencimiento,
+        'libros_populares': libros_populares,
+        'perfiles': perfiles,
+        'multas_usuarios': multas_usuarios,
+        'total_multas_actuales': total_multas_actuales,
+        'prestamos_detalle': prestamos[:100],
     })
 
 
 @administrador_requerido
 def exportar_reporte_prestamos(request):
     actualizar_sistema()
+    fecha_inicio, fecha_fin, _ = _rango_fechas(request)
     respuesta = HttpResponse(content_type='text/csv; charset=utf-8')
-    respuesta['Content-Disposition'] = 'attachment; filename="reporte_prestamos.csv"'
+    sufijo = f'_{fecha_inicio:%Y%m%d}' if fecha_inicio else ''
+    sufijo += f'_{fecha_fin:%Y%m%d}' if fecha_fin else ''
+    respuesta['Content-Disposition'] = f'attachment; filename="reporte_prestamos{sufijo}.csv"'
     respuesta.write('\ufeff')
     escritor = csv.writer(respuesta)
-    escritor.writerow(['Usuario', 'Tipo', 'Libro', 'Fecha prestamo', 'Fecha limite', 'Devolucion', 'Estado'])
+    escritor.writerow(['REPORTE DE PRESTAMOS'])
+    escritor.writerow(['Desde', fecha_inicio or 'Inicio de registros', 'Hasta', fecha_fin or 'Hoy'])
+    escritor.writerow([])
+    escritor.writerow(['DETALLE DE PRESTAMOS'])
+    escritor.writerow(['Usuario', 'Tipo', 'Libro', 'Autor', 'Fecha prestamo', 'Fecha limite', 'Devolucion', 'Estado', 'Multa actual'])
     prestamos = Prestamo.objects.select_related('usuario', 'libro').order_by('-fecha_prestamo')
+    if fecha_inicio:
+        prestamos = prestamos.filter(fecha_prestamo__gte=fecha_inicio)
+    if fecha_fin:
+        prestamos = prestamos.filter(fecha_prestamo__lte=fecha_fin)
     for prestamo in prestamos:
+        multa = getattr(prestamo, 'multa', None)
         escritor.writerow([
             prestamo.usuario.get_full_name() or prestamo.usuario.username,
             prestamo.usuario.tipo_usuario,
             prestamo.libro.titulo,
+            prestamo.libro.autor,
             prestamo.fecha_prestamo,
             prestamo.fecha_limite,
             prestamo.fecha_devolucion or '',
             prestamo.estado,
+            multa.monto if multa and not multa.pagada else '0.00',
         ])
+    escritor.writerow([])
+    escritor.writerow(['LIBROS MAS PRESTADOS'])
+    escritor.writerow(['Libro', 'Prestamos', 'Porcentaje'])
+    total = prestamos.count()
+    populares = prestamos.values('libro__titulo').annotate(total=Count('id')).order_by('-total', 'libro__titulo')[:10]
+    for item in populares:
+        escritor.writerow([item['libro__titulo'], item['total'], f"{round(item['total'] / total * 100, 1) if total else 0}%"])
     return respuesta
+
+
+def _rango_fechas(request):
+    """Obtiene un intervalo valido para filtrar los informes por fecha de prestamo."""
+    inicio_raw = request.GET.get('fecha_inicio', '').strip()
+    fin_raw = request.GET.get('fecha_fin', '').strip()
+    try:
+        inicio = datetime.strptime(inicio_raw, '%Y-%m-%d').date() if inicio_raw else None
+        fin = datetime.strptime(fin_raw, '%Y-%m-%d').date() if fin_raw else None
+    except ValueError:
+        return None, None, 'Ingresa las fechas con el formato correcto.'
+    if inicio and fin and inicio > fin:
+        return None, None, 'La fecha inicial no puede ser posterior a la fecha final.'
+    return inicio, fin, ''
