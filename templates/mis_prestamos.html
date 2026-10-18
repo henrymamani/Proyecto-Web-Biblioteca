@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
-{% block title %}Mis prestamos | Nodo{% endblock %}
-{% block section %}Mi cuenta / Prestamos{% endblock %}
+{% block title %}Mis préstamos | Nodo{% endblock %}
+{% block section %}Mi cuenta / Préstamos{% endblock %}
 {% block content %}
 <section class="page-head">
   <div>
     <p class="eyebrow">Mi historial</p>
-    <h1>Prestamos y multas</h1>
-    <p>Revisa los libros que tienes, los devueltos y cualquier monto pendiente.</p>
+    <h1>Mis préstamos</h1>
+    <p>Revisa los préstamos activos, vencidos y los libros que ya devolviste.</p>
   </div>
   <div class="head-actions">
     <a class="btn" href="{% url 'catalogo' %}">Buscar un libro</a>
@@ -15,8 +15,21 @@
 
 <section class="panel-card records-panel wide-panel">
   <div class="card-heading">
-    <h2>Historial de prestamos</h2>
+    <h2>Historial de préstamos</h2>
   </div>
+  <form class="loan-filter" method="get">
+    <label class="field" for="estado-prestamo">
+      <span>Clasificar por estado</span>
+      <select id="estado-prestamo" name="estado">
+        <option value="" {% if not estado_seleccionado %}selected{% endif %}>Todos los estados</option>
+        <option value="activo" {% if estado_seleccionado == 'activo' %}selected{% endif %}>Activo</option>
+        <option value="vencido" {% if estado_seleccionado == 'vencido' %}selected{% endif %}>Vencido</option>
+        <option value="devuelto" {% if estado_seleccionado == 'devuelto' %}selected{% endif %}>Devuelto</option>
+      </select>
+    </label>
+    <button class="btn btn-small" type="submit">Filtrar</button>
+    {% if estado_seleccionado %}<a class="table-link" href="{% url 'mis_prestamos' %}">Limpiar</a>{% endif %}
+  </form>
   <div class="table-wrap">
     <table>
       <thead>
@@ -50,21 +63,4 @@
   </div>
 </section>
 
-{% if multas %}
-  <section class="fine-section">
-    <div>
-      <p class="eyebrow">Pagos pendientes</p>
-      <h2>Multas por retraso</h2>
-      <p class="fine-total">Multa actual: <strong>Bs. {{ multa_actual }}</strong></p>
-    </div>
-    <div class="fine-list">
-      {% for multa in multas %}
-        <div>
-          <span>{{ multa.prestamo.libro.titulo }}</span>
-          <strong>Bs. {{ multa.monto }}</strong>
-        </div>
-      {% endfor %}
-    </div>
-  </section>
-{% endif %}
 {% endblock %}

@@ -7,9 +7,10 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import IntegrityError
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, F, Q, Sum
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from catalogo.forms import EtiquetaForm, LibroForm, ResenaForm
 from catalogo.models import Etiqueta, Libro, Resena
@@ -248,8 +249,16 @@ def eliminar_etiqueta(request, etiqueta_id):
 @administrador_requerido
 def administrar_prestamos(request):
     actualizar_sistema()
+    estado = request.GET.get('estado', '')
+    estados_validos = {'activo', 'vencido', 'devuelto'}
+    prestamos = Prestamo.objects.select_related('usuario', 'libro').order_by('-fecha_prestamo')
+    if estado in estados_validos:
+        prestamos = prestamos.filter(estado=estado)
+    else:
+        estado = ''
     return render(request, 'administrar_prestamos.html', {
-        'prestamos': Prestamo.objects.select_related('usuario', 'libro').order_by('-fecha_prestamo'),
+        'prestamos': prestamos,
+        'estado_seleccionado': estado,
     })
 
 
@@ -271,11 +280,58 @@ def devolver_prestamo(request, prestamo_id):
 def mis_prestamos(request):
     actualizar_sistema()
     prestamos = Prestamo.objects.filter(usuario=request.user).select_related('libro').order_by('-fecha_prestamo')
-    multas = Multa.objects.filter(prestamo__usuario=request.user, pagada=False).select_related('prestamo__libro')
+    estado = request.GET.get('estado', '')
+    estados_validos = {'activo', 'vencido', 'devuelto'}
+    if estado in estados_validos:
+        prestamos = prestamos.filter(estado=estado)
+    else:
+        estado = ''
     return render(request, 'mis_prestamos.html', {
         'prestamos': prestamos,
-        'multas': multas,
-        'multa_actual': multas.aggregate(total=Sum('monto'))['total'] or Decimal('0.00'),
+        'estado_seleccionado': estado,
+    })
+
+
+@login_required
+def multas(request):
+    actualizar_sistema()
+    hoy = timezone.localdate()
+    multas_devuelto = Multa.objects.filter(
+        prestamo__estado='devuelto',
+        prestamo__fecha_devolucion__gt=F('prestamo__fecha_limite'),
+    ).select_related('prestamo__usuario', 'prestamo__libro').order_by('-prestamo__fecha_devolucion')
+    multas_vencido = Multa.objects.filter(
+        prestamo__estado='vencido',
+    ).select_related('prestamo__usuario', 'prestamo__libro').order_by('prestamo__fecha_limite')
+
+    if es_administrador(request.user):
+        multas_vencido = list(multas_vencido)
+        for multa in multas_vencido:
+            multa.dias_retraso = max(0, (hoy - multa.prestamo.fecha_limite).days)
+        total_devuelto = multas_devuelto.aggregate(total=Sum('monto'))['total'] or Decimal('0.00')
+        total_vencido = sum((multa.monto for multa in multas_vencido), Decimal('0.00'))
+        return render(request, 'multas.html', {
+            'es_administrador': True,
+            'multas_devuelto': multas_devuelto,
+            'multas_vencido': multas_vencido,
+            'total_devuelto': total_devuelto,
+            'total_vencido': total_vencido,
+            'total_multas': total_devuelto + total_vencido,
+        })
+
+    multas_usuario = Multa.objects.filter(
+        prestamo__usuario=request.user,
+    ).filter(
+        Q(prestamo__estado='vencido')
+        | Q(
+            prestamo__estado='devuelto',
+            prestamo__fecha_devolucion__gt=F('prestamo__fecha_limite'),
+        )
+    ).select_related('prestamo__libro').order_by('-prestamo__fecha_prestamo')
+    return render(request, 'multas.html', {
+        'es_administrador': False,
+        'multas': multas_usuario,
+        'total_multas': multas_usuario.aggregate(total=Sum('monto'))['total'] or Decimal('0.00'),
     })
 
 

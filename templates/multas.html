@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Multas | Nodo{% endblock %}
+{% block section %}{% if es_administrador %}Gestion / Multas{% else %}Mi cuenta / Multas{% endif %}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Control de retrasos</p>
+    <h1>Multas</h1>
+    {% if es_administrador %}
+      <p>Consulta las devoluciones tardías y los préstamos que siguen vencidos.</p>
+    {% else %}
+      <p>Consulta las multas generadas por tus libros devueltos tarde y tus préstamos vencidos.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% if es_administrador %}
+  <section class="panel-card wide-panel fine-summary">
+    <div>
+      <p class="eyebrow">Total de multas registradas</p>
+      <h2>Bs. {{ total_multas|floatformat:2 }}</h2>
+    </div>
+    <p>Incluye las multas por devoluciones tardías y las que siguen acumulándose en préstamos vencidos.</p>
+  </section>
+
+  <section class="panel-card records-panel wide-panel">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Informe 1 · Devoluciones tardías</p>
+        <h2>Libros devueltos con multa</h2>
+      </div>
+      <span class="record-count">Total: Bs. {{ total_devuelto|floatformat:2 }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Libro</th><th>Estudiante</th><th>Préstamo</th><th>Devolución</th><th>Estado</th><th>Multa</th></tr>
+        </thead>
+        <tbody>
+          {% for multa in multas_devuelto %}
+            <tr>
+              <td><strong>{{ multa.prestamo.libro.titulo }}</strong></td>
+              <td><strong>{{ multa.prestamo.usuario.get_full_name|default:multa.prestamo.usuario.username }}</strong></td>
+              <td>{{ multa.prestamo.fecha_prestamo|date:'d/m/Y' }}</td>
+              <td>{{ multa.prestamo.fecha_devolucion|date:'d/m/Y' }}</td>
+              <td><span class="status status-devuelto">Devuelto</span></td>
+              <td><strong class="fine-amount">Bs. {{ multa.monto|floatformat:2 }}</strong></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty-table">No hay libros devueltos con retraso.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel-card records-panel wide-panel">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Informe 2 · Préstamos sin devolver</p>
+        <h2>Libros vencidos</h2>
+      </div>
+      <span class="record-count">Multas actuales: Bs. {{ total_vencido|floatformat:2 }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Libro</th><th>Estudiante</th><th>Préstamo</th><th>Días de retraso</th><th>Estado</th><th>Multa actual</th></tr>
+        </thead>
+        <tbody>
+          {% for multa in multas_vencido %}
+            <tr>
+              <td><strong>{{ multa.prestamo.libro.titulo }}</strong></td>
+              <td><strong>{{ multa.prestamo.usuario.get_full_name|default:multa.prestamo.usuario.username }}</strong></td>
+              <td>{{ multa.prestamo.fecha_prestamo|date:'d/m/Y' }}</td>
+              <td>{{ multa.dias_retraso }}</td>
+              <td><span class="status status-vencido">Vencido</span></td>
+              <td><strong class="fine-amount">Bs. {{ multa.monto|floatformat:2 }}</strong></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty-table">No hay préstamos vencidos con multa.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% else %}
+  <section class="panel-card records-panel wide-panel">
+    <div class="card-heading">
+      <div>
+        <p class="eyebrow">Mi historial</p>
+        <h2>Detalle de multas</h2>
+      </div>
+      <span class="record-count">Total: Bs. {{ total_multas|floatformat:2 }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Libro</th><th>Fecha de préstamo</th><th>Fecha de devolución</th><th>Estado</th><th>Multa</th></tr>
+        </thead>
+        <tbody>
+          {% for multa in multas %}
+            <tr>
+              <td><strong>{{ multa.prestamo.libro.titulo }}</strong></td>
+              <td>{{ multa.prestamo.fecha_prestamo|date:'d/m/Y' }}</td>
+              <td>{{ multa.prestamo.fecha_devolucion|date:'d/m/Y'|default:'--' }}</td>
+              <td><span class="status status-{{ multa.prestamo.estado }}">{{ multa.prestamo.get_estado_display }}</span></td>
+              <td><strong class="fine-amount">Bs. {{ multa.monto|floatformat:2 }}</strong></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty-table">No tienes multas registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

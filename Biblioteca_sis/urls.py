@@ -34,6 +34,7 @@ urlpatterns = [
     path('gestion/prestamos/', views.administrar_prestamos, name='administrar_prestamos'),
     path('gestion/prestamos/<int:prestamo_id>/devolver/', views.devolver_prestamo, name='devolver_prestamo'),
     path('mis-prestamos/', views.mis_prestamos, name='mis_prestamos'),
+    path('multas/', views.multas, name='multas'),
     path('catalogo/<int:libro_id>/reservar/', views.crear_reserva, name='crear_reserva'),
     path('catalogo/<int:libro_id>/resenas/', views.crear_resena, name='crear_resena'),
     path('resenas/<int:resena_id>/eliminar/', views.eliminar_resena, name='eliminar_resena'),

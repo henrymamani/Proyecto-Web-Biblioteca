@@ -30,19 +30,25 @@
             <a href="{% url 'administrar_prestamos' %}" class="nav-link {% if 'gestion/prestamos' in request.path %}active{% endif %}">
               <span>04</span>Préstamos
             </a>
+            <a href="{% url 'multas' %}" class="nav-link {% if request.resolver_match.url_name == 'multas' %}active{% endif %}">
+              <span>05</span>Multas
+            </a>
             <a href="{% url 'reservas' %}" class="nav-link {% if request.resolver_match.url_name == 'reservas' %}active{% endif %}">
-              <span>05</span>Reservas
+              <span>06</span>Reservas
             </a>
             <a href="{% url 'reportes' %}" class="nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}">
-              <span>06</span>Reportes
+              <span>07</span>Reportes
             </a>
           {% else %}
             <p class="nav-label">Mi cuenta</p>
             <a href="{% url 'mis_prestamos' %}" class="nav-link {% if request.resolver_match.url_name == 'mis_prestamos' %}active{% endif %}">
               <span>03</span>Mis prestamos
             </a>
+            <a href="{% url 'multas' %}" class="nav-link {% if request.resolver_match.url_name == 'multas' %}active{% endif %}">
+              <span>04</span>Multas
+            </a>
             <a href="{% url 'reservas' %}" class="nav-link {% if request.resolver_match.url_name == 'reservas' %}active{% endif %}">
-              <span>04</span>Mis reservas
+              <span>05</span>Mis reservas
             </a>
           {% endif %}
         </nav>
