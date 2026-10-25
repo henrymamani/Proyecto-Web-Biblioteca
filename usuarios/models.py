@@ -10,6 +10,7 @@ class Usuario(AbstractUser):
     ]
     tipo_usuario = models.CharField(max_length=20, choices=TIPO_USUARIO_CHOICES)
     ru_ci = models.CharField(max_length=20, unique=True)
+    google_sub = models.CharField(max_length=255, unique=True, null=True, blank=True)
     limite_prestamos = models.PositiveIntegerField(default=2, editable=False)
 
     LIMITES_POR_ROL = {

@@ -22,7 +22,7 @@
     </div>
     <div class="detail-availability">
       <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
-        {% if libro.disponible %}{{ libro.stock }} ejemplar(es) disponible(s){% else %}Sin ejemplares disponibles{% endif %}
+        {{ libro.stock }} disponible(s) / {{ libro.stock|add:libro.ejemplares_prestados }} registrado(s)
       </span>
       {% if user.is_authenticated and not user.is_staff and not user.is_superuser and user.tipo_usuario != 'administrador' %}
         <form action="{% url 'crear_reserva' libro.id %}" method="post">

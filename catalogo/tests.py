@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from usuarios.models import Usuario
+from prestamos.models import Prestamo
 
 from .models import Etiqueta, Libro, Resena
 
@@ -34,6 +35,37 @@ class CatalogoEtiquetasYResenasTests(TestCase):
 
         self.assertContains(respuesta, self.libro.titulo)
         self.assertContains(respuesta, self.etiqueta.nombre)
+
+    def test_catalogo_muestra_ejemplares_disponibles_y_registrados(self):
+        Prestamo.objects.create(
+            usuario=self.estudiante,
+            libro=self.libro,
+            fecha_limite='2030-01-10',
+        )
+        self.libro.stock = 1
+        self.libro.save(update_fields=['stock'])
+
+        respuesta = self.client.get(reverse('catalogo'))
+
+        self.assertContains(respuesta, '1/2 disponible(s)')
+
+    def test_inventario_no_duplica_prestamos_al_filtrar_varias_etiquetas(self):
+        segunda_etiqueta = Etiqueta.objects.create(nombre='Programación')
+        self.libro.etiquetas.add(segunda_etiqueta)
+        Prestamo.objects.create(
+            usuario=self.estudiante,
+            libro=self.libro,
+            fecha_limite='2030-01-10',
+        )
+        self.libro.stock = 1
+        self.libro.save(update_fields=['stock'])
+
+        respuesta = self.client.get(
+            reverse('catalogo'),
+            {'etiquetas': [self.etiqueta.id, segunda_etiqueta.id]},
+        )
+
+        self.assertContains(respuesta, '1/2 disponible(s)')
 
     def test_una_persona_solo_puede_calificar_una_vez_el_mismo_libro(self):
         Resena.objects.create(

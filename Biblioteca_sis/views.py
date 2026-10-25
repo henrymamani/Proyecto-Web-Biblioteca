@@ -1,15 +1,24 @@
 import csv
+import hashlib
+import base64
+import re
+import secrets
 from collections import Counter
 from datetime import datetime
 from decimal import Decimal
+from urllib.parse import urlencode
 
+import requests
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login, logout
+from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import IntegrityError
 from django.db.models import Avg, Count, F, Q, Sum
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from catalogo.forms import EtiquetaForm, LibroForm, ResenaForm
@@ -38,6 +47,13 @@ NOMBRES_MESES = (
     'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
 )
 
+GOOGLE_AUTORIZACION_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
+GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+
+
+class GoogleOAuthError(Exception):
+    """Error controlado al validar la identidad devuelta por Google."""
+
 
 def _filtrar_libros_por_consulta(libros, consulta):
     if not consulta:
@@ -50,6 +66,17 @@ def _filtrar_libros_por_consulta(libros, consulta):
         | Q(descripcion__icontains=consulta)
         | Q(etiquetas__nombre__icontains=consulta)
     ).distinct()
+
+
+def _libros_con_inventario():
+    """Incluye los ejemplares prestados para mostrar el inventario completo."""
+    return Libro.objects.annotate(
+        ejemplares_prestados=Count(
+            'prestamo',
+            filter=Q(prestamo__estado__in=['activo', 'vencido']),
+            distinct=True,
+        ),
+    )
 
 
 def inicio(request):
@@ -68,16 +95,185 @@ def inicio(request):
     })
 
 
+def ingresar(request):
+    """Muestra el acceso tradicional y, si esta configurado, el acceso con Google."""
+    return auth_views.LoginView.as_view(
+        template_name='registration/login.html',
+        extra_context={
+            'google_oauth_habilitado': bool(
+                settings.GOOGLE_OAUTH_CLIENT_ID and settings.GOOGLE_OAUTH_CLIENT_SECRET
+            ),
+        },
+    )(request)
+
+
+def _url_retorno_google(request):
+    return settings.GOOGLE_OAUTH_REDIRECT_URI or request.build_absolute_uri(
+        reverse('retorno_google')
+    )
+
+
+def _verificar_token_google(token_id):
+    """Verifica firma, audiencia y vencimiento del ID token de Google."""
+    try:
+        from google.auth.transport.requests import Request as GoogleRequest
+        from google.oauth2.id_token import verify_oauth2_token
+    except ImportError as error:
+        raise GoogleOAuthError('Falta instalar la dependencia google-auth.') from error
+
+    try:
+        return verify_oauth2_token(
+            token_id,
+            GoogleRequest(),
+            settings.GOOGLE_OAUTH_CLIENT_ID,
+        )
+    except ValueError as error:
+        raise GoogleOAuthError('Google devolvió una identidad que no pudo verificarse.') from error
+
+
+def iniciar_sesion_google(request):
+    if not settings.GOOGLE_OAUTH_CLIENT_ID or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
+        messages.error(request, 'El acceso con Google aún no está configurado por la biblioteca.')
+        return redirect('login')
+
+    estado = secrets.token_urlsafe(32)
+    verificador_pkce = secrets.token_urlsafe(64)
+    reto_pkce = base64.urlsafe_b64encode(
+        hashlib.sha256(verificador_pkce.encode()).digest()
+    ).rstrip(b'=').decode()
+    request.session['google_oauth_estado'] = estado
+    request.session['google_oauth_verificador_pkce'] = verificador_pkce
+    parametros = {
+        'client_id': settings.GOOGLE_OAUTH_CLIENT_ID,
+        'redirect_uri': _url_retorno_google(request),
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'state': estado,
+        'code_challenge': reto_pkce,
+        'code_challenge_method': 'S256',
+        'prompt': 'select_account',
+    }
+    if settings.GOOGLE_OAUTH_ALLOWED_DOMAIN:
+        parametros['hd'] = settings.GOOGLE_OAUTH_ALLOWED_DOMAIN
+    parametros = urlencode(parametros)
+    return redirect(f'{GOOGLE_AUTORIZACION_URL}?{parametros}')
+
+
+def _nombre_usuario_google(email):
+    base = re.sub(r'[^a-zA-Z0-9_.-]+', '-', email.split('@', 1)[0]).strip('.-') or 'usuario-google'
+    modelo_usuario = get_user_model()
+    candidato = base[:150]
+    numero = 2
+    while modelo_usuario.objects.filter(username=candidato).exists():
+        sufijo = f'-{numero}'
+        candidato = f'{base[:150 - len(sufijo)]}{sufijo}'
+        numero += 1
+    return candidato
+
+
+def retorno_google(request):
+    estado_esperado = request.session.pop('google_oauth_estado', None)
+    verificador_pkce = request.session.pop('google_oauth_verificador_pkce', None)
+    estado_recibido = request.GET.get('state', '')
+    if (
+        not estado_esperado
+        or not verificador_pkce
+        or not secrets.compare_digest(estado_esperado, estado_recibido)
+    ):
+        messages.error(request, 'No se pudo validar el inicio de sesión con Google. Inténtalo de nuevo.')
+        return redirect('login')
+
+    if request.GET.get('error'):
+        messages.info(request, 'El inicio de sesión con Google fue cancelado.')
+        return redirect('login')
+
+    codigo = request.GET.get('code')
+    if not codigo:
+        messages.error(request, 'Google no devolvió un código de acceso válido.')
+        return redirect('login')
+
+    try:
+        token = requests.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                'code': codigo,
+                'client_id': settings.GOOGLE_OAUTH_CLIENT_ID,
+                'client_secret': settings.GOOGLE_OAUTH_CLIENT_SECRET,
+                'redirect_uri': _url_retorno_google(request),
+                'grant_type': 'authorization_code',
+                'code_verifier': verificador_pkce,
+            },
+            timeout=10,
+        )
+        token.raise_for_status()
+        datos = _verificar_token_google(token.json()['id_token'])
+    except GoogleOAuthError as error:
+        messages.error(request, str(error))
+        return redirect('login')
+    except (KeyError, requests.RequestException, ValueError):
+        messages.error(request, 'No se pudo completar la verificación con Google. Inténtalo más tarde.')
+        return redirect('login')
+
+    email = datos.get('email', '').strip().lower()
+    identificador_google = str(datos.get('sub', ''))
+    dominio_hospedado = datos.get('hd', '').strip().lower()
+    if (
+        not email
+        or not identificador_google
+        or not datos.get('email_verified')
+        or dominio_hospedado != settings.GOOGLE_OAUTH_ALLOWED_DOMAIN
+    ):
+        messages.error(request, 'Solo se permiten cuentas institucionales verificadas.')
+        return redirect('login')
+
+    modelo_usuario = get_user_model()
+    usuario = modelo_usuario.objects.filter(google_sub=identificador_google).first()
+    if not usuario:
+        usuario = modelo_usuario.objects.filter(email__iexact=email).first()
+        if usuario and usuario.google_sub and usuario.google_sub != identificador_google:
+            messages.error(request, 'Este correo ya está vinculado a otra cuenta de Google.')
+            return redirect('login')
+    if not usuario:
+        usuario = modelo_usuario(
+            username=_nombre_usuario_google(email),
+            email=email,
+            first_name=datos.get('given_name', '')[:150],
+            last_name=datos.get('family_name', '')[:150],
+            tipo_usuario='estudiante',
+            ru_ci='GOOGLE-' + hashlib.sha256(identificador_google.encode()).hexdigest()[:13],
+            google_sub=identificador_google,
+        )
+        usuario.set_unusable_password()
+        usuario.save()
+        messages.success(request, 'Tu cuenta de estudiante fue creada con Google.')
+    elif not usuario.google_sub:
+        usuario.google_sub = identificador_google
+        usuario.save(update_fields=['google_sub'])
+
+    if not usuario.is_active:
+        messages.error(request, 'Esta cuenta está desactivada. Comunícate con la biblioteca.')
+        return redirect('login')
+    login(request, usuario)
+    return redirect('panel')
+
+
 def registro(request):
-    if request.user.is_authenticated:
+    registro_desde_admin = es_administrador(request.user)
+    if request.user.is_authenticated and not registro_desde_admin:
         return redirect('panel')
     form = RegistroEstudianteForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         usuario = form.save()
+        if registro_desde_admin:
+            messages.success(request, f'La cuenta de estudiante para {usuario.get_full_name() or usuario.username} fue creada correctamente.')
+            return redirect('panel')
         login(request, usuario)
         messages.success(request, 'Tu cuenta de estudiante fue creada correctamente.')
         return redirect('panel')
-    return render(request, 'registration/registro.html', {'form': form})
+    return render(request, 'registration/registro.html', {
+        'form': form,
+        'registro_desde_admin': registro_desde_admin,
+    })
 
 
 def salir(request):
@@ -131,7 +327,7 @@ def catalogo(request):
         orden = 'titulo'
 
     libros = _filtrar_libros_por_consulta(
-        Libro.objects.all().prefetch_related('etiquetas'),
+        _libros_con_inventario().prefetch_related('etiquetas'),
         consulta,
     )
     if etiquetas_activas:
@@ -148,7 +344,7 @@ def catalogo(request):
 
 def detalle_libro(request, libro_id):
     libro = get_object_or_404(
-        Libro.objects.prefetch_related('etiquetas', 'resenas__usuario'),
+        _libros_con_inventario().prefetch_related('etiquetas', 'resenas__usuario'),
         pk=libro_id,
     )
     resenas = libro.resenas.select_related('usuario').all()
@@ -520,33 +716,30 @@ def exportar_reporte_prestamos(request):
     sufijo = f'_{fecha_inicio:%Y%m%d}' if fecha_inicio else ''
     sufijo += f'_{fecha_fin:%Y%m%d}' if fecha_fin else ''
     respuesta['Content-Disposition'] = f'attachment; filename="reporte_biblioteca{sufijo}.csv"'
-    respuesta.write('\ufeff')
-    escritor = csv.writer(respuesta, delimiter=';', lineterminator='\n')
-    escritor.writerow(['REPORTE DE PRÉSTAMOS | BIBLIOTECA SIS-INF'])
-    escritor.writerow(['Periodo desde', fecha_inicio.strftime('%d/%m/%Y') if fecha_inicio else 'Inicio de registros'])
-    escritor.writerow(['Periodo hasta', fecha_fin.strftime('%d/%m/%Y') if fecha_fin else 'Hoy'])
-    escritor.writerow([])
+    # El BOM y la declaracion de separador permiten abrir el archivo directamente en Excel.
+    respuesta.write('\ufeffsep=;\r\n')
+    escritor = csv.writer(respuesta, delimiter=';', lineterminator='\r\n')
     prestamos = Prestamo.objects.select_related('usuario', 'libro', 'multa').prefetch_related('libro__etiquetas').order_by('-fecha_prestamo')
     if fecha_inicio:
         prestamos = prestamos.filter(fecha_prestamo__gte=fecha_inicio)
     if fecha_fin:
         prestamos = prestamos.filter(fecha_prestamo__lte=fecha_fin)
 
-    total_prestamos = prestamos.count()
-    escritor.writerow(['RESUMEN OPERATIVO'])
-    escritor.writerow(['Indicador', 'Cantidad'])
-    escritor.writerow(['Préstamos registrados', total_prestamos])
-    escritor.writerow(['Activos', prestamos.filter(estado='activo').count()])
-    escritor.writerow(['Devueltos', prestamos.filter(estado='devuelto').count()])
-    escritor.writerow(['Vencidos', prestamos.filter(estado='vencido').count()])
-    escritor.writerow([])
-    escritor.writerow(['DETALLE DE PRESTAMOS'])
+    ejemplares_prestados_por_libro = dict(
+        Prestamo.objects.filter(
+            libro__in=prestamos.values('libro_id'),
+            estado__in=['activo', 'vencido'],
+        ).values('libro_id').annotate(total=Count('id')).values_list('libro_id', 'total')
+    )
+
     escritor.writerow([
-        'Usuario', 'Perfil', 'Código/ISBN', 'Libro', 'Autor', 'Etiquetas',
-        'Fecha préstamo', 'Fecha límite', 'Fecha devolución', 'Estado', 'Multa pendiente (Bs.)',
+        'Usuario', 'Perfil', 'Código / ISBN', 'Libro', 'Autor', 'Etiquetas',
+        'Ejemplares disponibles', 'Ejemplares registrados', 'Fecha de préstamo',
+        'Fecha límite', 'Fecha de devolución', 'Estado', 'Multa pendiente (Bs.)',
     ])
     for prestamo in prestamos:
         multa = getattr(prestamo, 'multa', None)
+        ejemplares_prestados = ejemplares_prestados_por_libro.get(prestamo.libro_id, 0)
         escritor.writerow([
             prestamo.usuario.get_full_name() or prestamo.usuario.username,
             prestamo.usuario.get_tipo_usuario_display(),
@@ -554,18 +747,14 @@ def exportar_reporte_prestamos(request):
             prestamo.libro.titulo,
             prestamo.libro.autor,
             ', '.join(etiqueta.nombre for etiqueta in prestamo.libro.etiquetas.all()) or 'Sin etiquetas',
+            prestamo.libro.stock,
+            prestamo.libro.stock + ejemplares_prestados,
             prestamo.fecha_prestamo.strftime('%d/%m/%Y'),
             prestamo.fecha_limite.strftime('%d/%m/%Y'),
             prestamo.fecha_devolucion.strftime('%d/%m/%Y') if prestamo.fecha_devolucion else 'Pendiente',
             prestamo.get_estado_display(),
-            f'{multa.monto:.2f}' if multa and not multa.pagada else '0.00',
+            multa.monto if multa and not multa.pagada else Decimal('0.00'),
         ])
-    escritor.writerow([])
-    escritor.writerow(['LIBROS MÁS SOLICITADOS'])
-    escritor.writerow(['Libro', 'Autor', 'Préstamos'])
-    populares = prestamos.values('libro__titulo', 'libro__autor').annotate(total=Count('id')).order_by('-total', 'libro__titulo')[:10]
-    for item in populares:
-        escritor.writerow([item['libro__titulo'], item['libro__autor'], item['total']])
     return respuesta
 
 

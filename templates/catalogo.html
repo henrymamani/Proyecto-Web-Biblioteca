@@ -71,11 +71,7 @@
       </a>
       <div class="book-footer catalog-footer">
         <span class="availability {% if libro.disponible %}available{% else %}unavailable{% endif %}">
-          {% if libro.disponible %}
-            {{ libro.stock }} disponible(s)
-          {% else %}
-            Sin ejemplares
-          {% endif %}
+          {{ libro.stock }}/{{ libro.stock|add:libro.ejemplares_prestados }} disponible(s)
         </span>
         <a class="text-link card-detail-link" href="{% url 'detalle_libro' libro.id %}">Ver detalle <span>-&gt;</span></a>
         {% if user.is_authenticated and not user.is_staff and not user.is_superuser and user.tipo_usuario != 'administrador' %}

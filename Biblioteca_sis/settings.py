@@ -9,27 +9,32 @@ https://docs.djangoproject.com/en/6.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
-import os 
-from dotenv import load_dotenv 
-
-load_dotenv()
-
 from pathlib import Path
+import os
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
+
+
+def _entorno_booleano(nombre, predeterminado=False):
+    return os.getenv(nombre, str(predeterminado)).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5^bhtw@ov^9mio8xf&52%&6nhu3vtteowa^v$28d89wgq!glbk'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-solo-para-desarrollo')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _entorno_booleano('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
+if DEBUG:
+    ALLOWED_HOSTS += ['127.0.0.1', 'localhost', 'testserver']
 
 AUTH_USER_MODEL = 'usuarios.Usuario' #usuario creado
 
@@ -80,14 +85,25 @@ WSGI_APPLICATION = 'Biblioteca_sis.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = { 'default': 
- { 'ENGINE': 'django.db.backends.mysql', 
-  'NAME': os.getenv('DB_NAME'), 
-  'USER': os.getenv('DB_USER'), 
-  'PASSWORD': os.getenv('DB_PASSWORD'), 
-  'HOST': os.getenv('DB_HOST'), 
-  'PORT': os.getenv('DB_PORT'), } 
-}
+DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.mysql')
+if DB_ENGINE == 'django.db.backends.sqlite3':
+    DATABASES = {
+        'default': {
+            'ENGINE': DB_ENGINE,
+            'NAME': os.getenv('DB_NAME', BASE_DIR / 'db.sqlite3'),
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': DB_ENGINE,
+            'NAME': os.getenv('DB_NAME'),
+            'USER': os.getenv('DB_USER'),
+            'PASSWORD': os.getenv('DB_PASSWORD'),
+            'HOST': os.getenv('DB_HOST'),
+            'PORT': os.getenv('DB_PORT'),
+        }
+    }
 
 
 # Password validation
@@ -136,3 +152,19 @@ DEFAULT_FROM_EMAIL = 'biblioteca@local.test'
 
 LOGIN_REDIRECT_URL = 'panel'
 LOGOUT_REDIRECT_URL = 'inicio'
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# Acceso con Google (OAuth 2.0). Las credenciales se guardan solo en .env.
+GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID', '')
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET', '')
+# Opcional: util para definir el dominio de produccion de forma explicita.
+GOOGLE_OAUTH_REDIRECT_URI = os.getenv('GOOGLE_OAUTH_REDIRECT_URI', '')
+# Restringe el acceso a cuentas Google Workspace de este dominio.
+GOOGLE_OAUTH_ALLOWED_DOMAIN = os.getenv('GOOGLE_OAUTH_ALLOWED_DOMAIN', 'sistemas.edu.bo').strip().lower()

@@ -9,6 +9,7 @@ from catalogo.models import Libro
 from usuarios.models import Usuario
 
 from .models import Prestamo, Reserva
+from .services import ReglaPrestamoError, registrar_devolucion
 
 
 class FlujoAutorizacionReservasTests(TestCase):
@@ -83,5 +84,21 @@ class FlujoAutorizacionReservasTests(TestCase):
         actualizar_reserva(self.solicitud_post(url, self.administrador), reserva.id, 'autorizar')
 
         self.assertEqual(Prestamo.objects.filter(usuario=self.estudiante, libro=self.libro).count(), 1)
+
+    def test_no_se_puede_registrar_la_misma_devolucion_dos_veces(self):
+        prestamo = Prestamo.objects.create(
+            usuario=self.estudiante,
+            libro=self.libro,
+            fecha_limite='2030-01-10',
+        )
+        self.libro.stock = 1
+        self.libro.save(update_fields=['stock'])
+
+        registrar_devolucion(prestamo)
+        with self.assertRaises(ReglaPrestamoError):
+            registrar_devolucion(prestamo)
+
+        self.libro.refresh_from_db()
+        self.assertEqual(self.libro.stock, 2)
 
 # Create your tests here.

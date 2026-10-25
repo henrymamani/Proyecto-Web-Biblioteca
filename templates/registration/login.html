@@ -29,6 +29,12 @@
       {% endfor %}
       <button class="btn btn-full" type="submit">Ingresar</button>
     </form>
+    {% if google_oauth_habilitado %}
+      <div class="auth-divider"><span>o</span></div>
+      <a class="google-login" href="{% url 'login_google' %}">
+        <span aria-hidden="true">G</span> Continuar con Google
+      </a>
+    {% endif %}
     <!-- <p class="auth-footer"><a href="{% url 'registro' %}">Registrar</a></p> -->
   </div>
 </section>

@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
+from catalogo.models import Libro
+
 from .models import Multa, Notificacion, Prestamo, Reserva
 
 
@@ -22,6 +24,8 @@ def prestamos_abiertos(usuario):
 
 @transaction.atomic
 def crear_prestamo(usuario, libro):
+    # Evita que dos autorizaciones consuman el mismo ejemplar al mismo tiempo.
+    libro = Libro.objects.select_for_update().get(pk=libro.pk)
     if usuario.tipo_usuario not in ('estudiante', 'docente'):
         raise ReglaPrestamoError('Solo estudiantes y docentes pueden recibir prestamos.')
     if prestamos_abiertos(usuario).count() >= usuario.limite_prestamos:
@@ -31,7 +35,6 @@ def crear_prestamo(usuario, libro):
         )
     if libro.stock < 1:
         raise ReglaPrestamoError('No hay ejemplares disponibles para este libro.')
-
     libro.stock -= 1
     libro.save(update_fields=['stock'])
     prestamo = Prestamo.objects.create(
@@ -57,6 +60,8 @@ def autorizar_reserva(reserva):
 
 @transaction.atomic
 def registrar_devolucion(prestamo):
+    # Se vuelve a leer bloqueado para que una devolución no se procese dos veces.
+    prestamo = Prestamo.objects.select_for_update().select_related('libro').get(pk=prestamo.pk)
     if prestamo.estado == 'devuelto':
         raise ReglaPrestamoError('Este prestamo ya fue registrado como devuelto.')
 
@@ -65,11 +70,12 @@ def registrar_devolucion(prestamo):
     prestamo.fecha_devolucion = hoy
     prestamo.estado = 'devuelto'
     prestamo.save(update_fields=['fecha_devolucion', 'estado'])
-    prestamo.libro.stock += 1
-    prestamo.libro.save(update_fields=['stock'])
+    libro = Libro.objects.select_for_update().get(pk=prestamo.libro_id)
+    libro.stock += 1
+    libro.save(update_fields=['stock'])
 
     primera_reserva = Reserva.objects.filter(
-        libro=prestamo.libro,
+        libro=libro,
         estado='pendiente',
     ).select_related('usuario').order_by('fecha_reserva').first()
     if primera_reserva:
