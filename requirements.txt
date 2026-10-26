@@ -1,7 +1,11 @@
 # Dependencias necesarias para Biblioteca SIS-INF.
 # Instala con: python -m pip install -r requirements.txt
 Django==5.2.18
+dj-database-url==3.1.2
 google-auth>=2.0,<3.0
+gunicorn==23.0.0
 mysqlclient==2.2.8
+psycopg[binary]==3.3.2
 python-dotenv==1.2.3
 requests==2.31.0
+whitenoise[brotli]==6.12.0

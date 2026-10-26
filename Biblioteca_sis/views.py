@@ -1,6 +1,6 @@
 import csv
-import hashlib
 import base64
+import hashlib
 import re
 import secrets
 from collections import Counter
@@ -18,7 +18,6 @@ from django.db import IntegrityError
 from django.db.models import Avg, Count, F, Q, Sum
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils import timezone
 
 from catalogo.forms import EtiquetaForm, LibroForm, ResenaForm
@@ -31,6 +30,14 @@ from prestamos.services import (
     registrar_devolucion,
 )
 from usuarios.forms import RegistroEstudianteForm
+
+
+GOOGLE_AUTORIZACION_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
+GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+
+
+class GoogleOAuthError(Exception):
+    """Error controlado al validar la identidad devuelta por Google."""
 
 
 def es_administrador(usuario):
@@ -46,13 +53,6 @@ NOMBRES_MESES = (
     'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
     'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
 )
-
-GOOGLE_AUTORIZACION_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
-GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
-
-
-class GoogleOAuthError(Exception):
-    """Error controlado al validar la identidad devuelta por Google."""
 
 
 def _filtrar_libros_por_consulta(libros, consulta):
@@ -96,7 +96,7 @@ def inicio(request):
 
 
 def ingresar(request):
-    """Muestra el acceso tradicional y, si esta configurado, el acceso con Google."""
+    """Muestra el acceso tradicional y, si está configurado, el acceso con Google."""
     return auth_views.LoginView.as_view(
         template_name='registration/login.html',
         extra_context={
@@ -109,7 +109,7 @@ def ingresar(request):
 
 def _url_retorno_google(request):
     return settings.GOOGLE_OAUTH_REDIRECT_URI or request.build_absolute_uri(
-        reverse('retorno_google')
+        '/ingresar/google/retorno/'
     )
 
 
@@ -155,8 +155,7 @@ def iniciar_sesion_google(request):
     }
     if settings.GOOGLE_OAUTH_ALLOWED_DOMAIN:
         parametros['hd'] = settings.GOOGLE_OAUTH_ALLOWED_DOMAIN
-    parametros = urlencode(parametros)
-    return redirect(f'{GOOGLE_AUTORIZACION_URL}?{parametros}')
+    return redirect(f'{GOOGLE_AUTORIZACION_URL}?{urlencode(parametros)}')
 
 
 def _nombre_usuario_google(email):
@@ -673,7 +672,14 @@ def reportes(request):
 
     multas_usuarios = list(
         Multa.objects.filter(pagada=False)
-        .values('prestamo__usuario__first_name', 'prestamo__usuario__last_name', 'prestamo__usuario__username', 'prestamo__usuario__tipo_usuario')
+        .values(
+            'prestamo__usuario__first_name',
+            'prestamo__usuario__last_name',
+            'prestamo__usuario__username',
+            'prestamo__usuario__email',
+            # 'prestamo__usuario__ru_ci',  # Habilitar si se requiere mostrar CI/RU en multas.
+            'prestamo__usuario__tipo_usuario',
+        )
         .annotate(multa_actual=Sum('monto'), prestamos_con_multa=Count('id'))
         .order_by('-multa_actual')
     )
@@ -716,45 +722,54 @@ def exportar_reporte_prestamos(request):
     sufijo = f'_{fecha_inicio:%Y%m%d}' if fecha_inicio else ''
     sufijo += f'_{fecha_fin:%Y%m%d}' if fecha_fin else ''
     respuesta['Content-Disposition'] = f'attachment; filename="reporte_biblioteca{sufijo}.csv"'
-    # El BOM y la declaracion de separador permiten abrir el archivo directamente en Excel.
-    respuesta.write('\ufeffsep=;\r\n')
-    escritor = csv.writer(respuesta, delimiter=';', lineterminator='\r\n')
+    respuesta.write('\ufeff')
+    escritor = csv.writer(respuesta, delimiter=';', lineterminator='\n')
+    escritor.writerow(['REPORTE DE PRÉSTAMOS | BIBLIOTECA SIS-INF'])
+    escritor.writerow(['Periodo desde', fecha_inicio.strftime('%d/%m/%Y') if fecha_inicio else 'Inicio de registros'])
+    escritor.writerow(['Periodo hasta', fecha_fin.strftime('%d/%m/%Y') if fecha_fin else 'Hoy'])
+    escritor.writerow([])
     prestamos = Prestamo.objects.select_related('usuario', 'libro', 'multa').prefetch_related('libro__etiquetas').order_by('-fecha_prestamo')
     if fecha_inicio:
         prestamos = prestamos.filter(fecha_prestamo__gte=fecha_inicio)
     if fecha_fin:
         prestamos = prestamos.filter(fecha_prestamo__lte=fecha_fin)
 
-    ejemplares_prestados_por_libro = dict(
-        Prestamo.objects.filter(
-            libro__in=prestamos.values('libro_id'),
-            estado__in=['activo', 'vencido'],
-        ).values('libro_id').annotate(total=Count('id')).values_list('libro_id', 'total')
-    )
-
+    total_prestamos = prestamos.count()
+    escritor.writerow(['RESUMEN OPERATIVO'])
+    escritor.writerow(['Indicador', 'Cantidad'])
+    escritor.writerow(['Préstamos registrados', total_prestamos])
+    escritor.writerow(['Activos', prestamos.filter(estado='activo').count()])
+    escritor.writerow(['Devueltos', prestamos.filter(estado='devuelto').count()])
+    escritor.writerow(['Vencidos', prestamos.filter(estado='vencido').count()])
+    escritor.writerow([])
+    escritor.writerow(['DETALLE DE PRESTAMOS'])
     escritor.writerow([
-        'Usuario', 'Perfil', 'Código / ISBN', 'Libro', 'Autor', 'Etiquetas',
-        'Ejemplares disponibles', 'Ejemplares registrados', 'Fecha de préstamo',
-        'Fecha límite', 'Fecha de devolución', 'Estado', 'Multa pendiente (Bs.)',
+        'Usuario', 'Correo', 'Perfil', 'Código/ISBN', 'Libro', 'Autor', 'Etiquetas',
+        'Fecha préstamo', 'Fecha límite', 'Fecha devolución', 'Estado', 'Multa pendiente (Bs.)',
     ])
     for prestamo in prestamos:
         multa = getattr(prestamo, 'multa', None)
-        ejemplares_prestados = ejemplares_prestados_por_libro.get(prestamo.libro_id, 0)
         escritor.writerow([
             prestamo.usuario.get_full_name() or prestamo.usuario.username,
+            prestamo.usuario.email or 'Sin correo',
+            # prestamo.usuario.ru_ci,  # Habilitar si se requiere exportar CI/RU.
             prestamo.usuario.get_tipo_usuario_display(),
             prestamo.libro.isbn or 'Sin código',
             prestamo.libro.titulo,
             prestamo.libro.autor,
             ', '.join(etiqueta.nombre for etiqueta in prestamo.libro.etiquetas.all()) or 'Sin etiquetas',
-            prestamo.libro.stock,
-            prestamo.libro.stock + ejemplares_prestados,
             prestamo.fecha_prestamo.strftime('%d/%m/%Y'),
             prestamo.fecha_limite.strftime('%d/%m/%Y'),
             prestamo.fecha_devolucion.strftime('%d/%m/%Y') if prestamo.fecha_devolucion else 'Pendiente',
             prestamo.get_estado_display(),
-            multa.monto if multa and not multa.pagada else Decimal('0.00'),
+            f'{multa.monto:.2f}' if multa and not multa.pagada else '0.00',
         ])
+    escritor.writerow([])
+    escritor.writerow(['LIBROS MÁS SOLICITADOS'])
+    escritor.writerow(['Libro', 'Autor', 'Préstamos'])
+    populares = prestamos.values('libro__titulo', 'libro__autor').annotate(total=Count('id')).order_by('-total', 'libro__titulo')[:10]
+    for item in populares:
+        escritor.writerow([item['libro__titulo'], item['libro__autor'], item['total']])
     return respuesta
 
 
