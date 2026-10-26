@@ -4,18 +4,21 @@ Sistema de biblioteca desarrollado con Django.
 
 ## Despliegue en Render
 
-El repositorio ya incluye `render.yaml`, `build.sh` y la configuración necesaria para desplegar la aplicación con PostgreSQL administrado por Render.
+El repositorio ya incluye `render.yaml`, `build.sh` y la configuración necesaria para desplegar la aplicación en Render usando la base de datos MySQL de Aiven.
 
 1. Sube estos cambios a GitHub. No subas el archivo `.env`.
 2. En [Render](https://dashboard.render.com/), inicia sesión y selecciona **New +** → **Blueprint**.
 3. Conecta el repositorio `Proyecto-Web-Biblioteca` y confirma el archivo `render.yaml`.
-4. Pulsa **Apply**. Render creará un servicio web y la base de datos PostgreSQL, conectándolos mediante `DATABASE_URL` sin que copies contraseñas.
+4. Pulsa **Apply**. Render creará solo el servicio web; la información seguirá almacenada en Aiven.
 5. Cuando Render pida los valores marcados como secretos, agrega estos valores en **Environment** del servicio web:
 
    - `DJANGO_ALLOWED_HOSTS`: el dominio que Render asignó, por ejemplo `biblioteca-sis.onrender.com`.
    - `DJANGO_CSRF_TRUSTED_ORIGINS`: `https://biblioteca-sis.onrender.com`.
    - `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_OAUTH_CLIENT_SECRET`.
    - `GOOGLE_OAUTH_REDIRECT_URI`: `https://biblioteca-sis.onrender.com/ingresar/google/retorno/`.
+   - `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` y `DB_PORT`: usa los datos de conexión de Aiven.
+
+   En **Secret Files**, agrega el certificado CA descargado de Aiven con el nombre `aiven-ca.pem`. Render lo expondrá como `/etc/secrets/aiven-ca.pem`; esa ruta ya está configurada en `DB_SSL_CA`.
 
    Conserva `GOOGLE_OAUTH_ALLOWED_DOMAIN=sistemas.edu.bo` si solo deben entrar cuentas institucionales.
 
@@ -23,7 +26,7 @@ El repositorio ya incluye `render.yaml`, `build.sh` y la configuración necesari
 7. Espera que termine el despliegue y abre la URL `https://...onrender.com` que muestra Render.
 8. En Render abre **Shell** dentro del servicio y ejecuta `python manage.py createsuperuser` para crear el primer administrador.
 
-El comando de construcción ejecuta automáticamente las migraciones y recopila los archivos estáticos. En producción `DJANGO_DEBUG` queda desactivado.
+El comando de construcción ejecuta automáticamente las migraciones sobre Aiven y recopila los archivos estáticos. En producción `DJANGO_DEBUG` queda desactivado.
 
 ## Desarrollo local
 

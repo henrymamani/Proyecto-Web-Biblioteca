@@ -1,9 +1,3 @@
-databases:
-  - name: biblioteca-sis-db
-    plan: free
-    databaseName: biblioteca_sis
-    user: biblioteca_sis
-
 services:
   - type: web
     name: biblioteca-sis
@@ -13,10 +7,6 @@ services:
     startCommand: python -m gunicorn Biblioteca_sis.wsgi:application
     healthCheckPath: /
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: biblioteca-sis-db
-          property: connectionString
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DJANGO_DEBUG
@@ -25,6 +15,20 @@ services:
         sync: false
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
         sync: false
+      - key: DB_ENGINE
+        value: django.db.backends.mysql
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_SSL_CA
+        value: /etc/secrets/aiven-ca.pem
       - key: GOOGLE_OAUTH_CLIENT_ID
         sync: false
       - key: GOOGLE_OAUTH_CLIENT_SECRET

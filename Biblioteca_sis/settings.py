@@ -91,15 +91,8 @@ WSGI_APPLICATION = 'Biblioteca_sis.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASE_URL = os.getenv('DATABASE_URL')
 DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.mysql')
-if DATABASE_URL:
-    import dj_database_url
-
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600),
-    }
-elif DB_ENGINE == 'django.db.backends.sqlite3':
+if DB_ENGINE == 'django.db.backends.sqlite3':
     DATABASES = {
         'default': {
             'ENGINE': DB_ENGINE,
@@ -107,6 +100,10 @@ elif DB_ENGINE == 'django.db.backends.sqlite3':
         }
     }
 else:
+    opciones_bd = {}
+    ruta_ca = os.getenv('DB_SSL_CA', '').strip()
+    if ruta_ca:
+        opciones_bd['ssl'] = {'ca': ruta_ca}
     DATABASES = {
         'default': {
             'ENGINE': DB_ENGINE,
@@ -115,6 +112,8 @@ else:
             'PASSWORD': os.getenv('DB_PASSWORD'),
             'HOST': os.getenv('DB_HOST'),
             'PORT': os.getenv('DB_PORT'),
+            'CONN_MAX_AGE': 60,
+            'OPTIONS': opciones_bd,
         }
     }
 
