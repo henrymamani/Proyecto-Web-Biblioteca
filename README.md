@@ -26,7 +26,7 @@ El repositorio ya incluye `render.yaml`, `build.sh` y la configuración necesari
 7. Espera que termine el despliegue y abre la URL `https://...onrender.com` que muestra Render.
 8. En Render abre **Shell** dentro del servicio y ejecuta `python manage.py createsuperuser` para crear el primer administrador.
 
-El comando de construcción ejecuta automáticamente las migraciones sobre Aiven y recopila los archivos estáticos. En producción `DJANGO_DEBUG` queda desactivado.
+El inicio del servicio ejecuta automáticamente las migraciones sobre Aiven y el comando de construcción recopila los archivos estáticos. En producción `DJANGO_DEBUG` queda desactivado.
 
 ## Desarrollo local
 
