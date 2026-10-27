@@ -4,6 +4,12 @@ from .models import Etiqueta, Libro, Resena
 
 
 class LibroForm(forms.ModelForm):
+    def clean_imagen_url(self):
+        imagen_url = self.cleaned_data.get('imagen_url', '').strip()
+        if imagen_url and not imagen_url.startswith('https://'):
+            raise forms.ValidationError('La imagen debe usar una URL segura que comience con https://.')
+        return imagen_url
+
     class Meta:
         model = Libro
         fields = (

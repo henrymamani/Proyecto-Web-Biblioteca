@@ -1,10 +1,10 @@
 {% load static %}
-<meta name="google-site-verification" content="kpdrL4XyXQ1JXTiYpkO6On9JJgHH-tFGoKot_CZLwjA" />
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-site-verification" content="kpdrL4XyXQ1JXTiYpkO6On9JJgHH-tFGoKot_CZLwjA">
   <title>{% block title %}Nodo Biblioteca{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
   <script defer src="{% static 'js/app.js' %}"></script>
@@ -14,7 +14,7 @@
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <a class="brand brand-side" href="{% url 'panel' %}">
-           <span class="brand-mark"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkdezHnwM4D0SADSwLVvKQoeWPED0an4TPw8CDep2LX3uabChiWdB57Qw&s=10" width="35" height="35"></span><small>biblioteca SIS-INF</small>
+           <span class="brand-mark">LB</span><small>biblioteca SIS-INF</small>
         </a>
         <nav class="nav-list" aria-label="Menu principal">
           <a href="{% url 'panel' %}" class="nav-link {% if request.resolver_match.url_name == 'panel' %}active{% endif %}">
@@ -71,9 +71,9 @@
   {% else %}
     <header class="public-header">
       <a class="brand" href="{% url 'inicio' %}">
-        <span class="brand-mark"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkdezHnwM4D0SADSwLVvKQoeWPED0an4TPw8CDep2LX3uabChiWdB57Qw&s=10" width="35" height="35"></span><small>biblioteca SIS-INF</small>
+        <span class="brand-mark">LB</span><small>biblioteca SIS-INF</small>
       </a>
-      <a><img src="https://www.sisinf.fni.uto.edu.bo/wp-content/uploads/cropped-BOTON-PRINCIPAL.png" width="400" height:auto></a>
+      <span class="institution-name">Ing. de Sistemas<br><b>Ing. Informática</b></span>
       <nav>
         <a href="{% url 'catalogo' %}">Catalogo</a>
         <a class="btn btn-small " href="{% url 'login' %}" > Ingresar     </a>

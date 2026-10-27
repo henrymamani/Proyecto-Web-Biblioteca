@@ -41,6 +41,8 @@ small { color: var(--ink-soft); }
 .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 19px; font-weight: 800; letter-spacing: -.07em; }
 .brand small { display: block; margin-top: 1px; color: var(--ink-soft); font-size: 8px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .brand-mark { display: grid; width: 30px; height: 30px; place-items: center; color: var(--surface); background: var(--accent-dark); font-family: var(--serif); font-size: 18px; font-weight: 700; letter-spacing: 0; }
+.institution-name { color: var(--accent); font-size: 22px; font-weight: 700; line-height: 1.05; text-align: center; }
+.institution-name b { color: var(--wine); font-weight: 700; }
 .brand-dot { color: var(--accent); }
 .public-main { max-width: 1240px; margin: auto; padding: 22px 30px 55px; }
 .hero { display: grid; grid-template-columns: 1.13fr .87fr; min-height: 490px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }

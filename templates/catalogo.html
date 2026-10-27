@@ -52,8 +52,8 @@
     <article class="book-card catalog-card">
       <a class="book-card-main" href="{% url 'detalle_libro' libro.id %}" aria-label="Ver detalle de {{ libro.titulo }}">
         <div
-          class="book-cover {% if libro.imagen_url %}has-image{% endif %}"
-          {% if libro.imagen_url %}style="background-image:url('{{ libro.imagen_url }}')"{% endif %}
+          class="book-cover {% if libro.imagen_url_segura %}has-image{% endif %}"
+          {% if libro.imagen_url_segura %}style="background-image:url('{{ libro.imagen_url_segura }}')"{% endif %}
         >
           <span>LB</span>
           <i></i>

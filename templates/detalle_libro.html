@@ -4,8 +4,8 @@
 {% block content %}
 <meta name="google-site-verification" content="kpdrL4XyXQ1JXTiYpkO6On9JJgHH-tFGoKot_CZLwjA" />
 <section class="book-detail-layout">
-  <div class="detail-cover {% if libro.imagen_url %}has-image{% endif %}" {% if libro.imagen_url %}style="background-image:url('{{ libro.imagen_url }}')"{% endif %}>
-    {% if not libro.imagen_url %}<span>LB</span>{% endif %}
+  <div class="detail-cover {% if libro.imagen_url_segura %}has-image{% endif %}" {% if libro.imagen_url_segura %}style="background-image:url('{{ libro.imagen_url_segura }}')"{% endif %}>
+    {% if not libro.imagen_url_segura %}<span>LB</span>{% endif %}
   </div>
   <div class="book-detail-copy">
     <a class="back-link" href="{% url 'catalogo' %}">&larr; Volver al catálogo</a>

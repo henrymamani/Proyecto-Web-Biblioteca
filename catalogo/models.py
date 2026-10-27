@@ -2,6 +2,7 @@
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from urllib.parse import urlparse
 
 
 class Etiqueta(models.Model):
@@ -33,6 +34,13 @@ class Libro(models.Model):
     @property
     def disponible(self):
         return self.stock > 0
+
+    @property
+    def imagen_url_segura(self):
+        """Evita cargar portadas por HTTP en páginas publicadas con HTTPS."""
+        if urlparse(self.imagen_url).scheme == 'https':
+            return self.imagen_url
+        return ''
 
 
 class Resena(models.Model):

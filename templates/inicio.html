@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Nodo | Biblioteca de Sistemas{% endblock %}
 {% block content %}
-<meta name="google-site-verification" content="kpdrL4XyXQ1JXTiYpkO6On9JJgHH-tFGoKot_CZLwjA" />
 <section class="hero">
   <div class="hero-copy">
     <p class="eyebrow">Biblioteca de la carrera de Sistemas e Informatica </p>
@@ -23,7 +23,7 @@
     <div class="book-stack" aria-hidden="true"></div>
     <strong>Explora nuestro catalogo</strong>
     <p></p> </p>
-    <p><img src="https://www.sisinf.fni.uto.edu.bo/wp-content/uploads/sisinf2-1536x1157.jpg" height="325" width="auto"></p>
+    <p><img src="{% static 'images_sisinf.jpg' %}" alt="Edificio de Ingeniería de Sistemas e Informática" height="325" width="auto"></p>
     <p>Consulta los ejemplares disponibles de cada titulo.</p>
     <div class="mini-stats">
       <span><b>{{ total_libros }}</b>Titulos</span>
