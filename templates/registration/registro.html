@@ -32,7 +32,7 @@
       </div>
     </form>
     {% if registro_desde_admin %}
-      <p class="auth-footer"><a href="{% url 'panel' %}">Volver al panel administrativo</a></p>
+      <p class="auth-footer"><a href="{% url 'panel' %}">Volver</a></p>
     {% else %}
       <p class="auth-footer">Ya tienes cuenta? <a href="{% url 'login' %}">Ingresar</a></p>
     {% endif %}
