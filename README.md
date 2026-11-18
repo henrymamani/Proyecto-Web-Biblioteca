@@ -30,10 +30,12 @@ El inicio del servicio ejecuta automáticamente las migraciones sobre Aiven y el
 
 ## Desarrollo local
 
-1. Copia `.env.example` como `.env` y completa tus variables locales.
-2. Instala dependencias: `python -m pip install -r requirements.txt`.
-3. Ejecuta migraciones: `python manage.py migrate`.
-4. Inicia el proyecto: `python manage.py runserver`.
+1. Activa el entorno virtual en Windows: `.\venv\Scripts\Activate.ps1`.
+2. Copia `.env.example` como `.env` y completa tus variables locales.
+3. Instala dependencias: `python -m pip install -r requirements.txt`.
+4. Ejecuta migraciones: `python manage.py migrate`.
+5. Comprueba el proyecto: `python manage.py check` y `python manage.py test`.
+6. Inicia el proyecto: `python manage.py runserver`.
 
 Para una base local rápida puedes usar SQLite:
 
@@ -41,3 +43,7 @@ Para una base local rápida puedes usar SQLite:
 DB_ENGINE=django.db.backends.sqlite3
 DB_NAME=db.sqlite3
 ```
+
+MySQL debe estar iniciado y aceptar las credenciales definidas en `.env` antes de
+ejecutar comandos que consultan o modifican datos, como `migrate`,
+`actualizar_prestamos` o `runserver`.
