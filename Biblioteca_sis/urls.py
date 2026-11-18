@@ -20,6 +20,11 @@ from django.views.generic import TemplateView
 from . import views
 
 urlpatterns = [
+    # Archivo exacto exigido por Google Search Console para verificar el dominio.
+    path(
+        'googlee25b8ea978036927.html',
+        TemplateView.as_view(template_name='googlee25b8ea978036927.html'),
+    ),
     path(
         'google3dbe74db886da647.html',
         TemplateView.as_view(template_name='google3dbe74db886da647.html'),
